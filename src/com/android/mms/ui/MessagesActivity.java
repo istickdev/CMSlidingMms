@@ -11,9 +11,12 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
 import com.android.mms.R;
+
+import java.util.Collection;
 
 public class MessagesActivity extends Activity {
     private SlidingPaneLayout mPane;
@@ -21,23 +24,27 @@ public class MessagesActivity extends Activity {
     private boolean mChangeThread;
     private long mThreadId;
     
+    private boolean mDeleteFromList;
+    
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+//        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         
         setContentView(R.layout.messages_screen);
 
         mPane = (SlidingPaneLayout) findViewById(R.id.pane);
-        mPane.openPane();
+        
         mPane.setParallaxDistance(400);
         mPane.setPanelSlideListener(new PanelSlideListener() {
             @Override
             public void onPanelClosed(View view) {
                 ComposeMessageFragment cmf = (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
+                cmf.setHasOptionsMenu(true);
+                cmf.onShow();
                 
                 getFragmentManager().findFragmentById(R.id.pane1).setHasOptionsMenu(false);
-                getFragmentManager().findFragmentById(R.id.pane2).setHasOptionsMenu(true);
+                
                 
                 Log.d("asdlfkjsdfsdlfkj", "panel closed ***** [mChangeThread] " + mChangeThread);
                 if(mChangeThread) {
@@ -59,7 +66,14 @@ public class MessagesActivity extends Activity {
                 ab.setDisplayHomeAsUpEnabled(false);
                 
                 getFragmentManager().findFragmentById(R.id.pane1).setHasOptionsMenu(true);
-                getFragmentManager().findFragmentById(R.id.pane2).setHasOptionsMenu(false);
+                ComposeMessageFragment cmf = (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
+                cmf.setHasOptionsMenu(false);
+                cmf.onHide();
+                
+                InputMethodManager imm = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(mPane.getWindowToken(), 0);
+                // Some devices may need to use this method ??
+//                imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0);
             }
 
             @Override
@@ -70,6 +84,8 @@ public class MessagesActivity extends Activity {
 
         getFragmentManager().beginTransaction().add(R.id.pane1, new ConversationListFragment(), "pane1").commit();
         getFragmentManager().beginTransaction().add(R.id.pane2, new ComposeMessageFragment(), "pane2").commit();
+        
+        mPane.openPane();
     }
     
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -95,10 +111,19 @@ public class MessagesActivity extends Activity {
         mChangeThread = true;
         
         ComposeMessageFragment composeFragment = (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
-        composeFragment.openThread(threadId);
+        composeFragment.openThread(threadId, true);
         composeFragment.reloadTitle();
         
 //        mPane.closePane();
+    }
+    
+    private ComposeMessageFragment getMessageFragment() {
+        return (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
+    }
+    
+    public void onThreadDelete(Collection<Long> threadIds) {
+        if(threadIds.contains(mThreadId)) {
+        }
     }
     
     public void close() {
@@ -107,5 +132,17 @@ public class MessagesActivity extends Activity {
     
     public void open() {
         mPane.openPane();
+    }
+    
+    public void setDeleteFromList(boolean deleteFromList) {
+        mDeleteFromList = deleteFromList;
+    }
+    
+    public boolean getDeleteFromList() {
+        return mDeleteFromList;
+    }
+    
+    public long getThreadId() {
+        return mThreadId;
     }
 }

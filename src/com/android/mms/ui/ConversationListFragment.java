@@ -683,6 +683,9 @@ public class ConversationListFragment extends ListFragment implements DraftCache
 
         @Override
         public void onClick(DialogInterface dialog, final int whichButton) {
+            MessagesActivity ma = (MessagesActivity) mContext;
+            ma.setDeleteFromList(true);
+            
             MessageUtils.handleReadReport(mContext, mThreadIds,
                     PduHeaders.READ_STATUS__DELETED_WITHOUT_BEING_READ, new Runnable() {
                 @Override

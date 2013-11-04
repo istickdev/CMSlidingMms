@@ -319,6 +319,9 @@ public class ComposeMessageFragment extends Fragment
                                         // think the message list is empty, thus show the recipients
                                         // editor thinking it's a draft message. This flag should
                                         // help clarify the situation.
+    
+    private boolean mThreadChangeCalled;
+    private boolean mHasFocus;
 
     private WorkingMessage mWorkingMessage;         // The message currently being composed.
 
@@ -1834,6 +1837,9 @@ public class ComposeMessageFragment extends Fragment
     }
 
     private void updateTitle(ContactList list) {
+        if(!mHasFocus) {
+            return;
+        }
         String title = null;
         String subTitle = null;
         int cnt = list.size();
@@ -1934,10 +1940,18 @@ public class ComposeMessageFragment extends Fragment
         mRecipientsEditor.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                if (!hasFocus) {
-                    RecipientsEditor editor = (RecipientsEditor) v;
-                    ContactList contacts = editor.constructContactsFromInput(false);
-//                    updateTitle(contacts);
+                if(mHasFocus) {
+                    if (!hasFocus) {
+                        RecipientsEditor editor = (RecipientsEditor) v;
+                        ContactList contacts = editor.constructContactsFromInput(false);
+                        // TODO: we don't want to call this in fragment
+                        updateTitle(contacts);
+                    }
+                    else {
+                        final InputMethodManager inputManager = (InputMethodManager)
+                                getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+                        inputManager.showSoftInput(v, 0);
+                    }
                 }
             }
         });
@@ -2150,7 +2164,7 @@ public class ComposeMessageFragment extends Fragment
             log("update title, mConversation=" + mConversation.toString());
         }
 
-//        updateTitle(mConversation.getRecipients());
+        updateTitle(mConversation.getRecipients());
 
         if (isForwardedMessage && isRecipientsEditorVisible()) {
             // The user is forwarding the message to someone. Put the focus on the
@@ -2247,7 +2261,8 @@ public class ComposeMessageFragment extends Fragment
         }
     }
     //TODO delete toast and comments
-    public void openThread(long threadId) {
+    public void openThread(long threadId, boolean fromList) {
+        mThreadChangeCalled = fromList;
         mConversationIntent = ComposeMessageFragment.createIntent(getActivity(), threadId);
         mConversationIntent.putExtra(THREAD_ID, threadId);
 //        toast("mConversationIntent " + mConversationIntent.getData());
@@ -2449,11 +2464,11 @@ public class ComposeMessageFragment extends Fragment
                 if (LogTag.VERBOSE) {
                     log("onRestart: goToConversationList");
                 }
-                goToConversationList();
+                return;
             }
         }
 
-        initFocus();
+//        initFocus();
 
         // Register a BroadcastReceiver to listen on HTTP I/O process.
         getActivity().registerReceiver(mHttpProgressReceiver, mHttpProgressFilter);
@@ -2590,17 +2605,17 @@ public class ComposeMessageFragment extends Fragment
             log("update title, mConversation=" + mConversation.toString());
         }
 
-//        // There seems to be a bug in the framework such that setting the title
-//        // here gets overwritten to the original title.  Do this delayed as a
-//        // workaround.
-//        mMessageListItemHandler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                ContactList recipients = isRecipientsEditorVisible() ?
-//                        mRecipientsEditor.constructContactsFromInput(false) : getRecipients();
-//                updateTitle(recipients);
-//            }
-//        }, 100);
+        // There seems to be a bug in the framework such that setting the title
+        // here gets overwritten to the original title.  Do this delayed as a
+        // workaround.
+        mMessageListItemHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                ContactList recipients = isRecipientsEditorVisible() ?
+                        mRecipientsEditor.constructContactsFromInput(false) : getRecipients();
+                updateTitle(recipients);
+            }
+        }, 100);
 
         // Load the selected input type
         SharedPreferences prefs = PreferenceManager
@@ -2749,6 +2764,10 @@ public class ComposeMessageFragment extends Fragment
             mTextEditor.setFocusable(false);
             mTextEditor.setHint(R.string.open_keyboard_to_compose_message);
         }
+    }
+    
+    public boolean isKeyboardOpen() {
+        return mIsKeyboardOpen;
     }
 
     // TODO
@@ -4037,6 +4056,11 @@ public class ComposeMessageFragment extends Fragment
         Uri conversationUri = mConversation.getUri();
 
         if (conversationUri == null) {
+            if(mThreadChangeCalled) {
+                mThreadChangeCalled = false;
+                MessagesActivity ma = (MessagesActivity) getActivity();
+                ma.close();
+            }
             log("##### startMsgListQuery: conversationUri is null, bail!");
             return;
         }
@@ -4062,30 +4086,6 @@ public class ComposeMessageFragment extends Fragment
         }
     }
     
-    private void resetMessageList() {
-        String highlightString = mConversationIntent.getStringExtra("highlight");
-        Pattern highlight = highlightString == null
-            ? null
-            : Pattern.compile("\\b" + Pattern.quote(highlightString), Pattern.CASE_INSENSITIVE);
-
-        // Initialize the list adapter with a null cursor.
-        mMsgListAdapter = new MessageListAdapter(getActivity(), null, mMsgListView, true, highlight);
-        mMsgListAdapter.setOnDataSetChangedListener(mDataSetChangedListener);
-        mMsgListAdapter.setMsgListItemHandler(mMessageListItemHandler);
-        mMsgListView.setAdapter(mMsgListAdapter);
-        mMsgListView.setItemsCanFocus(false);
-        mMsgListView.setVisibility(mSendDiscreetMode ? View.INVISIBLE : View.VISIBLE);
-        mMsgListView.setOnCreateContextMenuListener(mMsgListMenuCreateListener);
-        mMsgListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (view != null) {
-                    ((MessageListItem) view).onMessageListItemClick();
-                }
-            }
-        });
-    }
-
     private void initMessageList() {
         if (mMsgListAdapter != null) {
             return;
@@ -4273,7 +4273,9 @@ public class ComposeMessageFragment extends Fragment
         showSubjectEditor(false);
 
         // Focus to the text editor.
-        mTextEditor.requestFocus();
+        if(mHasFocus) { // TODO: may not need this
+            mTextEditor.requestFocus();
+        }
 
         // We have to remove the text change listener while the text editor gets cleared and
         // we subsequently turn the message back into SMS. When the listener is listening while
@@ -4375,6 +4377,7 @@ public class ComposeMessageFragment extends Fragment
         }
         
         long threadId = intent.getLongExtra(THREAD_ID, 0);
+        Log.d("Mms", "initactivitystate tid: " + threadId);
         if (threadId > 0) {
             if (LogTag.VERBOSE) log("get mConversation by threadId " + threadId);
             mConversation = Conversation.get(getActivity(), threadId, false);
@@ -4411,12 +4414,24 @@ public class ComposeMessageFragment extends Fragment
         }
         mWorkingMessage.setSubject(intent.getStringExtra("subject"), false);
     }
+    
+    public void onShow() {
+        mHasFocus = true;
+        initFocus();
+    }
+    
+    public void onHide() {
+        mHasFocus = false;
+        mTextEditor.clearFocus();
+        mRecipientsEditor.clearFocus();
+    }
 
     private void initFocus() {
         if (!mIsKeyboardOpen) {
             return;
         }
         
+        mTextEditor.clearFocus();
         mRecipientsEditor.clearFocus();
 
         // If the recipients editor is visible, there is nothing in it,
@@ -4425,12 +4440,12 @@ public class ComposeMessageFragment extends Fragment
         if (isRecipientsEditorVisible()
                 && TextUtils.isEmpty(mRecipientsEditor.getText())
                 && !mTextEditor.isFocused()) {
-//            mRecipientsEditor.requestFocus();
+            mRecipientsEditor.requestFocus();
             return;
         }
 
         // If we decided not to focus the recipients editor, focus the text editor.
-//        mTextEditor.requestFocus();
+        mTextEditor.requestFocus();
     }
 
     private final MessageListAdapter.OnDataSetChangedListener
@@ -4441,7 +4456,24 @@ public class ComposeMessageFragment extends Fragment
 
         @Override
         public void onContentChanged(MessageListAdapter adapter) {
-            startMsgListQuery();
+            MessagesActivity ma = (MessagesActivity) getActivity();
+            if(ma.getDeleteFromList()) {
+                long threadId = mConversation.getThreadId();
+                if(threadId == ma.getThreadId()) {
+                    // Our current conversation was deleted from the ConversationListFragment
+                    Log.d("Mms", "Our current conversation was deleted from the ConversationListFragment");
+                    //                    mWorkingMessage.discard();
+//                    mConversationIntent = createIntent(getActivity(), 0);
+//                    mConversation = Conversation.createNew(getActivity());
+//                    mWorkingMessage.discard();
+//                    startMsgListQuery();
+                    
+                    openThread(0, false);
+                }
+            }
+            else {
+                startMsgListQuery();
+            }
         }
     };
 
@@ -4654,18 +4686,22 @@ public class ComposeMessageFragment extends Fragment
 
                     // FIXME: freshing layout changes the focused view to an unexpected
                     // one, set it back to TextEditor forcely.
-//                    mTextEditor.requestFocus();
                     // TODO do something to this! this whole fragment needs work :/
-                    MessagesActivity ma = (MessagesActivity) getActivity();
-                    ma.close();
+                    if(mThreadChangeCalled) {
+                        mThreadChangeCalled = false;
+                        MessagesActivity ma = (MessagesActivity) getActivity();
+                        ma.close();
+                        
+                        mTextEditor.requestFocus();
+                    }
 //                    getActivity().invalidateOptionsMenu();    // some menu items depend on the adapter's count
                     return;
 
                 case ConversationList.HAVE_LOCKED_MESSAGES_TOKEN:
                     @SuppressWarnings("unchecked")
                     ArrayList<Long> threadIds = (ArrayList<Long>)cookie;
-                    ConversationList.confirmDeleteThreadDialog(
-                            new ConversationList.DeleteThreadListener(threadIds,
+                    ConversationListFragment.confirmDeleteThreadDialog(
+                            new ConversationListFragment.DeleteThreadListener(threadIds,
                                 mBackgroundQueryHandler, getActivity()),
                             threadIds,
                             cursor != null && cursor.getCount() > 0,
@@ -5083,7 +5119,7 @@ public class ComposeMessageFragment extends Fragment
                     log("[CMA] onUpdate contact updated: " + updated);
                     log("[CMA] onUpdate recipients: " + recipients);
                 }
-//                updateTitle(recipients);
+                updateTitle(recipients);
 
                 // The contact information for one (or more) of the recipients has changed.
                 // Rebuild the message list so each MessageItem will get the last contact info.
