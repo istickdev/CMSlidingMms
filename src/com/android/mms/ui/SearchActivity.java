@@ -249,7 +249,7 @@ public class SearchActivity extends ListActivity
                         long whichTable = Long.parseLong(u.getQueryParameter("which_table"));
                         long threadId = getThreadId(sourceId, whichTable);
 
-                        final Intent onClickIntent = new Intent(SearchActivity.this, ComposeMessageActivity.class);
+                        final Intent onClickIntent = new Intent(SearchActivity.this, MessagesActivity.class);
                         onClickIntent.putExtra("highlight", searchString);
                         onClickIntent.putExtra("select_id", sourceId);
                         onClickIntent.putExtra("thread_id", threadId);
@@ -332,7 +332,7 @@ public class SearchActivity extends ListActivity
 
                         view.setOnClickListener(new View.OnClickListener() {
                             public void onClick(View v) {
-                                final Intent onClickIntent = new Intent(SearchActivity.this, ComposeMessageActivity.class);
+                                final Intent onClickIntent = new Intent(SearchActivity.this, MessagesActivity.class);
                                 onClickIntent.putExtra("thread_id", threadId);
                                 onClickIntent.putExtra("highlight", searchString);
                                 onClickIntent.putExtra("select_id", rowid);

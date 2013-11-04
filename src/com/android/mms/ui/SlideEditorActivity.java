@@ -455,7 +455,7 @@ public class SlideEditorActivity extends Activity {
             case MENU_RECORD_SOUND:
                 slide = mSlideshowModel.get(mPosition);
                 int currentSlideSize = slide.getSlideSize();
-                long sizeLimit = ComposeMessageActivity.computeAttachmentSizeLimit(mSlideshowModel,
+                long sizeLimit = ComposeMessageFragment.computeAttachmentSizeLimit(mSlideshowModel,
                         currentSlideSize);
                 MessageUtils.recordSound(this, REQUEST_CODE_RECORD_SOUND, sizeLimit);
                 break;
@@ -474,7 +474,7 @@ public class SlideEditorActivity extends Activity {
             case MENU_TAKE_VIDEO:
                 slide = mSlideshowModel.get(mPosition);
                 currentSlideSize = slide.getSlideSize();
-                sizeLimit = ComposeMessageActivity.computeAttachmentSizeLimit(mSlideshowModel,
+                sizeLimit = ComposeMessageFragment.computeAttachmentSizeLimit(mSlideshowModel,
                         currentSlideSize);
                 if (sizeLimit > 0) {
                     MessageUtils.recordVideo(this, REQUEST_CODE_TAKE_VIDEO, sizeLimit);

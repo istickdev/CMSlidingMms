@@ -181,13 +181,13 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     }
 
     private void updateBlacklistSummary() {
-        if (mBlacklist != null) {
-            if (BlacklistUtils.isBlacklistEnabled(this)) {
-                mBlacklist.setSummary(R.string.blacklist_summary);
-            } else {
-                mBlacklist.setSummary(R.string.blacklist_summary_disabled);
-            }
-        }
+//        if (mBlacklist != null) {
+//            if (BlacklistUtils.isBlacklistEnabled(this)) {
+//                mBlacklist.setSummary(R.string.blacklist_summary);
+//            } else {
+//                mBlacklist.setSummary(R.string.blacklist_summary_disabled);
+//            }
+//        }
     }
 
     private void loadPrefs() {

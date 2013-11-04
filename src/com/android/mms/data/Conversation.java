@@ -34,7 +34,6 @@ import com.android.mms.MmsApp;
 import com.android.mms.R;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.MmsMessageSender;
-import com.android.mms.ui.ComposeMessageActivity;
 import com.android.mms.ui.MessageUtils;
 import com.android.mms.util.AddressUtils;
 import com.android.mms.util.DraftCache;
@@ -630,8 +629,8 @@ public class Conversation {
         }
         synchronized(sDeletingThreadsLock) {
             if (DELETEDEBUG) {
-                ComposeMessageActivity.log("Conversation getOrCreateThreadId for: " +
-                        list.formatNamesAndNumbers(",") + " sDeletingThreads: " + sDeletingThreads);
+//                ComposeMessageActivity.log("Conversation getOrCreateThreadId for: " +
+//                        list.formatNamesAndNumbers(",") + " sDeletingThreads: " + sDeletingThreads);
             }
             long now = System.currentTimeMillis();
             while (sDeletingThreads) {
@@ -660,8 +659,8 @@ public class Conversation {
     public static long getOrCreateThreadId(Context context, String address) {
         synchronized(sDeletingThreadsLock) {
             if (DELETEDEBUG) {
-                ComposeMessageActivity.log("Conversation getOrCreateThreadId for: " +
-                        address + " sDeletingThreads: " + sDeletingThreads);
+//                ComposeMessageActivity.log("Conversation getOrCreateThreadId for: " +
+//                        address + " sDeletingThreads: " + sDeletingThreads);
             }
             long now = System.currentTimeMillis();
             while (sDeletingThreads) {

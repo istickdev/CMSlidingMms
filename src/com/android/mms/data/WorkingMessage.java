@@ -60,7 +60,7 @@ import com.android.mms.model.TextModel;
 import com.android.mms.transaction.MessageSender;
 import com.android.mms.transaction.MmsMessageSender;
 import com.android.mms.transaction.SmsMessageSender;
-import com.android.mms.ui.ComposeMessageActivity;
+import com.android.mms.ui.ComposeMessageFragment;
 import com.android.mms.ui.MessageUtils;
 import com.android.mms.ui.MessagingPreferenceActivity;
 import com.android.mms.ui.SlideshowEditor;
@@ -164,7 +164,7 @@ public class WorkingMessage {
 
     /**
      * Callback interface for communicating important state changes back to
-     * ComposeMessageActivity.
+     * Activity.
      */
     public interface MessageStatusListener {
         /**
@@ -204,10 +204,10 @@ public class WorkingMessage {
         void onAttachmentError(int error);
     }
 
-    private WorkingMessage(ComposeMessageActivity activity) {
-        mActivity = activity;
+    private WorkingMessage(ComposeMessageFragment fragment) {
+        mActivity = fragment.getActivity();
         mContentResolver = mActivity.getContentResolver();
-        mStatusListener = activity;
+        mStatusListener = fragment;
         mAttachmentType = TEXT;
         mText = "";
     }
@@ -215,9 +215,9 @@ public class WorkingMessage {
     /**
      * Creates a new working message.
      */
-    public static WorkingMessage createEmpty(ComposeMessageActivity activity) {
+    public static WorkingMessage createEmpty(ComposeMessageFragment fragment) {
         // Make a new empty working message.
-        WorkingMessage msg = new WorkingMessage(activity);
+        WorkingMessage msg = new WorkingMessage(fragment);
         return msg;
     }
 
@@ -225,10 +225,10 @@ public class WorkingMessage {
      * Create a new WorkingMessage from the specified data URI, which typically
      * contains an MMS message.
      */
-    public static WorkingMessage load(ComposeMessageActivity activity, Uri uri) {
+    public static WorkingMessage load(ComposeMessageFragment fragment, Uri uri) {
         // If the message is not already in the draft box, move it there.
         if (!uri.toString().startsWith(Mms.Draft.CONTENT_URI.toString())) {
-            PduPersister persister = PduPersister.getPduPersister(activity);
+            PduPersister persister = PduPersister.getPduPersister(fragment.getActivity());
             if (Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
                 LogTag.debug("load: moving %s to drafts", uri);
             }
@@ -240,7 +240,7 @@ public class WorkingMessage {
             }
         }
 
-        WorkingMessage msg = new WorkingMessage(activity);
+        WorkingMessage msg = new WorkingMessage(fragment);
         if (msg.loadFromUri(uri)) {
             msg.mHasMmsDraft = true;
             return msg;
@@ -294,12 +294,12 @@ public class WorkingMessage {
      * Load the draft message for the specified conversation, or a new empty message if
      * none exists.
      */
-    public static WorkingMessage loadDraft(ComposeMessageActivity activity,
+    public static WorkingMessage loadDraft(ComposeMessageFragment fragment,
                                            final Conversation conv,
                                            final Runnable onDraftLoaded) {
         if (Log.isLoggable(LogTag.APP, Log.VERBOSE)) LogTag.debug("loadDraft %s", conv);
 
-        final WorkingMessage msg = createEmpty(activity);
+        final WorkingMessage msg = createEmpty(fragment);
         if (conv.getThreadId() <= 0) {
             if (onDraftLoaded != null) {
                 onDraftLoaded.run();
@@ -388,8 +388,8 @@ public class WorkingMessage {
         // mark this message as no longer having an attachment
         updateState(HAS_ATTACHMENT, false, notify);
         if (notify) {
-            // Tell ComposeMessageActivity (or other listener) that the attachment has changed.
-            // In the case of ComposeMessageActivity, it will remove its attachment panel because
+            // Tell Activity (or other listener) that the attachment has changed.
+            // In the case of Activity, it will remove its attachment panel because
             // this working message no longer has an attachment.
             mStatusListener.onAttachmentChanged();
         }
@@ -435,7 +435,7 @@ public class WorkingMessage {
         int result = OK;
         SlideshowEditor slideShowEditor = new SlideshowEditor(mActivity, mSlideshow);
 
-        // Special case for deleting a slideshow. When ComposeMessageActivity gets told to
+        // Special case for deleting a slideshow. When Activity gets told to
         // remove an attachment (search for AttachmentEditor.MSG_REMOVE_ATTACHMENT), it calls
         // this function setAttachment with a type of TEXT and a null uri. Basically, it's turning
         // the working message from an MMS back to a simple SMS. The various attachment types
@@ -690,7 +690,7 @@ public class WorkingMessage {
      * Sets the MMS subject of the message.  Passing null indicates that there
      * is no subject.  Passing "" will result in an empty subject being added
      * to the message, possibly triggering a conversion to MMS.  This extra
-     * bit of state is needed to support ComposeMessageActivity converting to
+     * bit of state is needed to support Activity converting to
      * MMS when the user adds a subject.  An empty subject will be removed
      * before saving to disk or sending, however.
      */
@@ -1441,6 +1441,9 @@ public class WorkingMessage {
                 // Create a new MMS message if one hasn't been made yet.
                 mmsUri = createDraftMmsMessage(persister, sendReq, slideshow, mmsUri,
                         mActivity, null);
+                
+                // TODO find where I can cut out of sending mms before here
+                if(mmsUri == null) return;
             } else {
                 // Otherwise, sync the MMS message in progress to disk.
                 updateDraftMmsMessage(mmsUri, persister, slideshow, sendReq, null);
@@ -1591,6 +1594,7 @@ public class WorkingMessage {
             slideshow.sync(pb);
             return res;
         } catch (MmsException e) {
+            Log.d("asdlkfjsldkfjsdlkfj", "We got a MMSEXCEPTION here! " + e.getMessage());
             return null;
         }
     }

@@ -511,9 +511,13 @@ public class SmsReceiverService extends Service {
             return replaceMessage(context, msgs, error);
         } else if (AddressUtils.isSuppressedSprintVVM(context, sms.getOriginatingAddress())) {
             return null;
-        } else if (isBlacklisted(context, sms.getOriginatingAddress(), sms.getTimestampMillis())) {
-            return null;
-        } else {
+        }
+        
+//        else if (isBlacklisted(context, sms.getOriginatingAddress(), sms.getTimestampMillis())) {
+//            return null;
+//        } 
+        
+        else {
             return storeMessage(context, msgs, error);
         }
     }

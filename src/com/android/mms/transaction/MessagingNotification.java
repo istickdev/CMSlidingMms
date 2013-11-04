@@ -73,9 +73,10 @@ import com.android.mms.model.SlideModel;
 import com.android.mms.model.SlideshowModel;
 import com.android.mms.quickmessage.QmMarkRead;
 import com.android.mms.quickmessage.QuickMessagePopup;
-import com.android.mms.ui.ComposeMessageActivity;
+import com.android.mms.ui.ComposeMessageFragment;
 import com.android.mms.ui.ConversationList;
 import com.android.mms.ui.MessageUtils;
+import com.android.mms.ui.MessagesActivity;
 import com.android.mms.ui.MessagingPreferenceActivity;
 import com.android.mms.util.AddressUtils;
 import com.android.mms.util.DownloadManager;
@@ -810,7 +811,7 @@ public class MessagingNotification {
         if (AddressUtils.isSuppressedSprintVVM(context, address)) {
             return null;
         }
-        Intent clickIntent = ComposeMessageActivity.createIntent(context, threadId);
+        Intent clickIntent = ComposeMessageFragment.createIntent(context, threadId);
         clickIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -957,7 +958,7 @@ public class MessagingNotification {
                 }
             }
 
-            taskStackBuilder.addParentStack(ComposeMessageActivity.class);
+            taskStackBuilder.addParentStack(MessagesActivity.class);
             taskStackBuilder.addNextIntent(mostRecentNotification.mClickIntent);
         }
         // Always have to set the small icon or the notification is ignored
@@ -1184,7 +1185,7 @@ public class MessagingNotification {
                 final TelephonyManager tm =
                         (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
                 boolean callIsActive = tm.getCallState() != TelephonyManager.CALL_STATE_IDLE;
-                if (!callIsActive && !ConversationList.mIsRunning && !ComposeMessageActivity.mIsRunning) {
+                if (!callIsActive && !ConversationList.mIsRunning && !ComposeMessageFragment.mIsRunning) {
                     // Show the popup
                     context.startActivity(qmIntent);
                 }
@@ -1289,7 +1290,7 @@ public class MessagingNotification {
 
         TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(context);
         if (allFailedInSameThread) {
-            failedIntent = new Intent(context, ComposeMessageActivity.class);
+            failedIntent = new Intent(context, MessagesActivity.class);
             if (isDownload) {
                 // When isDownload is true, the valid threadId is passed into this function.
                 failedIntent.putExtra("failed_download_flag", true);
@@ -1298,7 +1299,7 @@ public class MessagingNotification {
                 failedIntent.putExtra("undelivered_flag", true);
             }
             failedIntent.putExtra("thread_id", threadId);
-            taskStackBuilder.addParentStack(ComposeMessageActivity.class);
+            taskStackBuilder.addParentStack(MessagesActivity.class);
         } else {
             failedIntent = new Intent(context, ConversationList.class);
         }

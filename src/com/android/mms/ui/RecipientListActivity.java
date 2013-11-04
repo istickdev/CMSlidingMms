@@ -57,9 +57,9 @@ public class RecipientListActivity extends ListActivity {
 
         if (icicle != null) {
             // Retrieve previously saved state of this activity.
-            mThreadId = icicle.getLong(ComposeMessageActivity.THREAD_ID);
+            mThreadId = icicle.getLong(ComposeMessageFragment.THREAD_ID);
         } else {
-            mThreadId = getIntent().getLongExtra(ComposeMessageActivity.THREAD_ID, 0);
+            mThreadId = getIntent().getLongExtra(ComposeMessageFragment.THREAD_ID, 0);
         }
         if (mThreadId == 0) {
             Log.w(TAG, "No thread_id specified in extras or icicle. Finishing...");
@@ -86,7 +86,7 @@ public class RecipientListActivity extends ListActivity {
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
-        outState.putLong(ComposeMessageActivity.THREAD_ID, mThreadId);
+        outState.putLong(ComposeMessageFragment.THREAD_ID, mThreadId);
         super.onSaveInstanceState(outState);
     }
 

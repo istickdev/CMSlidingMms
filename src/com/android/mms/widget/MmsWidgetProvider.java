@@ -29,7 +29,7 @@ import android.widget.RemoteViews;
 
 import com.android.mms.LogTag;
 import com.android.mms.R;
-import com.android.mms.ui.ComposeMessageActivity;
+import com.android.mms.ui.ComposeMessageFragment;
 import com.android.mms.ui.ConversationList;
 
 public class MmsWidgetProvider extends AppWidgetProvider {
@@ -99,7 +99,7 @@ public class MmsWidgetProvider extends AppWidgetProvider {
         remoteViews.setOnClickPendingIntent(R.id.widget_header, clickIntent);
 
         // On click intent for Compose
-        final Intent composeIntent = new Intent(context, ComposeMessageActivity.class);
+        final Intent composeIntent = new Intent(context, ComposeMessageFragment.class);
         composeIntent.setAction(Intent.ACTION_SENDTO);
         clickIntent = PendingIntent.getActivity(
                 context, 0, composeIntent, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -107,7 +107,7 @@ public class MmsWidgetProvider extends AppWidgetProvider {
 
         // On click intent for Conversation
         TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(context);
-        taskStackBuilder.addParentStack(ComposeMessageActivity.class);
+        taskStackBuilder.addParentStack(ComposeMessageFragment.class);
         Intent msgIntent = new Intent(Intent.ACTION_VIEW);
         msgIntent.setType("vnd.android-dir/mms-sms");
         taskStackBuilder.addNextIntent(msgIntent);

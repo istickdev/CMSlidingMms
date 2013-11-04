@@ -43,17 +43,17 @@ public class NoConfirmationSendService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        ComposeMessageActivity.log("NoConfirmationSendService onHandleIntent");
+        ComposeMessageFragment.log("NoConfirmationSendService onHandleIntent");
 
         String action = intent.getAction();
         if (!TelephonyManager.ACTION_RESPOND_VIA_MESSAGE.equals(action)) {
-            ComposeMessageActivity.log("NoConfirmationSendService onHandleIntent wrong action: " +
+            ComposeMessageFragment.log("NoConfirmationSendService onHandleIntent wrong action: " +
                     action);
             return;
         }
         Bundle extras = intent.getExtras();
         if (extras == null) {
-            ComposeMessageActivity.log("Called to send SMS but no extras");
+            ComposeMessageFragment.log("Called to send SMS but no extras");
             return;
         }
 
@@ -63,16 +63,16 @@ public class NoConfirmationSendService extends IntentService {
         String recipients = Conversation.getRecipients(intentUri);
 
         if (TextUtils.isEmpty(recipients)) {
-            ComposeMessageActivity.log("Recipient(s) cannot be empty");
+            ComposeMessageFragment.log("Recipient(s) cannot be empty");
             return;
         }
         if (extras.getBoolean("showUI", false)) {
-            intent.setClassName(this, "com.android.mms.ui.ComposeMessageActivityNoLockScreen");
+            intent.setClassName(this, "com.android.mms.ui.ComposeMessageFragmentNoLockScreen");
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         } else {
             if (TextUtils.isEmpty(message)) {
-                ComposeMessageActivity.log("Message cannot be empty");
+                ComposeMessageFragment.log("Message cannot be empty");
                 return;
             }
             String[] dests = TextUtils.split(recipients, ";");

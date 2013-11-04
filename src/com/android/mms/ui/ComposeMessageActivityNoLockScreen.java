@@ -22,7 +22,7 @@ import android.view.WindowManager;
 /**
  * This activity is privately used to hide the lock screen before showing ComposeMessageActivity.
  */
-public class ComposeMessageActivityNoLockScreen extends ComposeMessageActivity {
+public class ComposeMessageActivityNoLockScreen extends MessagesActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
