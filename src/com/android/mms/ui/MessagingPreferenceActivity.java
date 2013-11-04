@@ -155,9 +155,21 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private CheckBoxPreference mEnableQmLockscreenPref;
     private CheckBoxPreference mEnableQmCloseAllPref;
     private CheckBoxPreference mEnableQmDarkThemePref;
+    
+    private Preference mSmsDisabledPref;
+    private Preference mSmsEnabledPref;
+
+    private PreferenceCategory mStoragePrefCategory;
+    private PreferenceCategory mSmsPrefCategory;
+    private PreferenceCategory mMmsPrefCategory;
+    private PreferenceCategory mNotificationPrefCategory;
 
     // Blacklist
     private PreferenceScreen mBlacklist;
+    
+    // Whether or not we are currently enabled for SMS. This field is updated in onResume to make
+    // sure we notice if the user has changed the default SMS app.
+    private boolean mIsSmsEnabled;
 
     @Override
     protected void onCreate(Bundle icicle) {
@@ -172,12 +184,30 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     @Override
     protected void onResume() {
         super.onResume();
-
+        
         // Since the enabled notifications pref can be changed outside of this activity,
         // we have to reload it whenever we resume, including the blacklist summary
         setEnabledNotificationsPref();
         updateBlacklistSummary();
         registerListeners();
+    }
+    
+    private void updateSmsEnabledState() {
+        // Show the right pref (SMS Disabled or SMS Enabled)
+        PreferenceScreen prefRoot = (PreferenceScreen)findPreference("pref_key_root");
+        if (!mIsSmsEnabled) {
+            prefRoot.addPreference(mSmsDisabledPref);
+            prefRoot.removePreference(mSmsEnabledPref);
+        } else {
+            prefRoot.removePreference(mSmsDisabledPref);
+            prefRoot.addPreference(mSmsEnabledPref);
+        }
+
+        // Enable or Disable the settings as appropriate
+        mStoragePrefCategory.setEnabled(mIsSmsEnabled);
+        mSmsPrefCategory.setEnabled(mIsSmsEnabled);
+        mMmsPrefCategory.setEnabled(mIsSmsEnabled);
+        mNotificationPrefCategory.setEnabled(mIsSmsEnabled);
     }
 
     private void updateBlacklistSummary() {
@@ -192,6 +222,20 @@ public class MessagingPreferenceActivity extends PreferenceActivity
 
     private void loadPrefs() {
         addPreferencesFromResource(R.xml.preferences);
+        
+        mSmsDisabledPref = findPreference("pref_key_sms_disabled");
+        
+        int currentapiVersion = android.os.Build.VERSION.SDK_INT;
+        if (currentapiVersion <= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2){
+            PreferenceScreen prefRoot = (PreferenceScreen)findPreference("pref_key_root");
+            prefRoot.removePreference(mSmsDisabledPref);
+        }
+
+        mStoragePrefCategory = (PreferenceCategory)findPreference("pref_key_storage_settings");
+        mSmsPrefCategory = (PreferenceCategory)findPreference("pref_key_sms_settings");
+        mMmsPrefCategory = (PreferenceCategory)findPreference("pref_key_mms_settings");
+        mNotificationPrefCategory =
+                (PreferenceCategory)findPreference("pref_key_notification_settings");
 
         mManageSimPref = findPreference("pref_key_manage_sim_messages");
         mSmsLimitPref = findPreference("pref_key_sms_delete_limit");
