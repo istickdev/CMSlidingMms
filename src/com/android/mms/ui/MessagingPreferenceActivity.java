@@ -157,7 +157,6 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private CheckBoxPreference mEnableQmDarkThemePref;
     
     private Preference mSmsDisabledPref;
-    private Preference mSmsEnabledPref;
 
     private PreferenceCategory mStoragePrefCategory;
     private PreferenceCategory mSmsPrefCategory;
@@ -192,24 +191,6 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         registerListeners();
     }
     
-    private void updateSmsEnabledState() {
-        // Show the right pref (SMS Disabled or SMS Enabled)
-        PreferenceScreen prefRoot = (PreferenceScreen)findPreference("pref_key_root");
-        if (!mIsSmsEnabled) {
-            prefRoot.addPreference(mSmsDisabledPref);
-            prefRoot.removePreference(mSmsEnabledPref);
-        } else {
-            prefRoot.removePreference(mSmsDisabledPref);
-            prefRoot.addPreference(mSmsEnabledPref);
-        }
-
-        // Enable or Disable the settings as appropriate
-        mStoragePrefCategory.setEnabled(mIsSmsEnabled);
-        mSmsPrefCategory.setEnabled(mIsSmsEnabled);
-        mMmsPrefCategory.setEnabled(mIsSmsEnabled);
-        mNotificationPrefCategory.setEnabled(mIsSmsEnabled);
-    }
-
     private void updateBlacklistSummary() {
 //        if (mBlacklist != null) {
 //            if (BlacklistUtils.isBlacklistEnabled(this)) {

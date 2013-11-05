@@ -184,6 +184,7 @@ public class ConversationListFragment extends ListFragment implements DraftCache
         new ConversationListAdapter.OnContentChangedListener() {
         @Override
         public void onContentChanged(ConversationListAdapter adapter) {
+            Log.d("Mms", "content changed! (((((((((((((((((((((((((((((((((((((((");
             startAsyncQuery();
         }
     };

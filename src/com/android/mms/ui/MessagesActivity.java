@@ -8,6 +8,7 @@ import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.widget.SlidingPaneLayout;
 import android.support.v4.widget.SlidingPaneLayout.PanelSlideListener;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowManager;
@@ -43,19 +44,17 @@ public class MessagesActivity extends Activity {
                 cmf.setHasOptionsMenu(true);
                 cmf.onShow();
                 
-                getFragmentManager().findFragmentById(R.id.pane1).setHasOptionsMenu(false);
+                ConversationListFragment clf = (ConversationListFragment) getFragmentManager().findFragmentById(R.id.pane1);
+                clf.setHasOptionsMenu(false);
                 
                 
-                Log.d("asdlfkjsdfsdlfkj", "panel closed ***** [mChangeThread] " + mChangeThread);
-                if(mChangeThread) {
-                    mChangeThread = false;
-                    
-                    // TODO: move title update to this class
+//                Log.d("asdlfkjsdfsdlfkj", "panel closed ***** [mChangeThread] " + mChangeThread);
+//                if(mChangeThread) {
+//                    mChangeThread = false;
+//                }
+//                else {
 //                    cmf.reloadTitle();
-                }
-                else {
-                    cmf.reloadTitle();
-                }
+//                }
             }
 
             @Override
@@ -144,5 +143,20 @@ public class MessagesActivity extends Activity {
     
     public long getThreadId() {
         return mThreadId;
+    }
+    
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+                if(!mPane.isOpen()) {
+                    mPane.openPane();
+                    return true;
+                }
+                else {
+                    return super.onKeyDown(keyCode, event);
+                }
+        }
+
+        return super.onKeyDown(keyCode, event);
     }
 }

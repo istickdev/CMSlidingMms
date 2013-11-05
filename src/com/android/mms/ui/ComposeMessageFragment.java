@@ -3973,7 +3973,7 @@ public class ComposeMessageFragment extends Fragment
      */
     private void initResourceRefs() {
         mMsgListView = (MessageListView) getView().findViewById(R.id.history);
-        mMsgListView.setDivider(null);      // no divider so we look like IM conversation.
+//        mMsgListView.setDivider(null);      // no divider so we look like IM conversation.
 
         // called to enable us to show some padding between the message list and the
         // input field but when the message list is scrolled that padding area is filled
@@ -4418,6 +4418,11 @@ public class ComposeMessageFragment extends Fragment
     public void onShow() {
         mHasFocus = true;
         initFocus();
+        reloadTitle();
+//        mConversation.blockMarkAsRead(true);
+//        mConversation.markAsRead(true);
+//        startMsgListQuery();
+        loadMessageContent();
     }
     
     public void onHide() {
@@ -4458,6 +4463,7 @@ public class ComposeMessageFragment extends Fragment
         public void onContentChanged(MessageListAdapter adapter) {
             MessagesActivity ma = (MessagesActivity) getActivity();
             if(ma.getDeleteFromList()) {
+                ma.setDeleteFromList(false);
                 long threadId = mConversation.getThreadId();
                 if(threadId == ma.getThreadId()) {
                     // Our current conversation was deleted from the ConversationListFragment
