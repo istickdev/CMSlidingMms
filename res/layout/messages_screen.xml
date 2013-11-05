@@ -26,18 +26,34 @@
         android:id="@+id/pane"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+        
+        <LinearLayout
+            android:id="@+id/left_pane"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:orientation="vertical" >
 
-        <FrameLayout
-            android:id="@+id/pane1"
-            android:layout_width="360dp"
-            android:layout_height="match_parent"
-            android:background="@color/background" />
+            <fragment
+                android:id="@+id/conversation_list_fragment"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                class="com.android.mms.ui.ConversationListFragment"
+                android:tag="messages" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:id="@+id/right_pane"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:orientation="vertical" >
 
-        <FrameLayout
-            android:id="@+id/pane2"
-            android:layout_width="400dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@color/background" />
+            <fragment
+                android:id="@+id/compose_message_fragment"
+                android:layout_width="fill_parent"
+                android:layout_height="fill_parent"
+                class="com.android.mms.ui.ComposeMessageFragment"
+                android:tag="list" />
+        </LinearLayout>
+
     </android.support.v4.widget.SlidingPaneLayout>
 </RelativeLayout>

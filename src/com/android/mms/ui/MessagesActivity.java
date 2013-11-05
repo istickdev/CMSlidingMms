@@ -20,6 +20,10 @@ import com.android.mms.R;
 import java.util.Collection;
 
 public class MessagesActivity extends Activity {
+    
+    private static String COMPOSE_MESSAGE_TAG = "messages";
+    private static String CONVERSATION_LIST_TAG = "list";
+    
     private SlidingPaneLayout mPane;
     
     private boolean mChangeThread;
@@ -40,11 +44,11 @@ public class MessagesActivity extends Activity {
         mPane.setPanelSlideListener(new PanelSlideListener() {
             @Override
             public void onPanelClosed(View view) {
-                ComposeMessageFragment cmf = (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
-                cmf.setHasOptionsMenu(true);
-                cmf.onShow();
+                ComposeMessageFragment composeMessageFragment = getMessageFragment();
+                composeMessageFragment.setHasOptionsMenu(true);
+                composeMessageFragment.onShow();
                 
-                ConversationListFragment clf = (ConversationListFragment) getFragmentManager().findFragmentById(R.id.pane1);
+                ConversationListFragment clf = getListFragment();
                 clf.setHasOptionsMenu(false);
                 
                 
@@ -64,10 +68,10 @@ public class MessagesActivity extends Activity {
                 ab.setSubtitle(null);
                 ab.setDisplayHomeAsUpEnabled(false);
                 
-                getFragmentManager().findFragmentById(R.id.pane1).setHasOptionsMenu(true);
-                ComposeMessageFragment cmf = (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
-                cmf.setHasOptionsMenu(false);
-                cmf.onHide();
+                getListFragment().setHasOptionsMenu(true);
+                ComposeMessageFragment composeMessageFragment = getMessageFragment();
+                composeMessageFragment.setHasOptionsMenu(false);
+                composeMessageFragment.onHide();
                 
                 InputMethodManager imm = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(mPane.getWindowToken(), 0);
@@ -81,17 +85,23 @@ public class MessagesActivity extends Activity {
             }
         });
 
-        getFragmentManager().beginTransaction().add(R.id.pane1, new ConversationListFragment(), "pane1").commit();
-        getFragmentManager().beginTransaction().add(R.id.pane2, new ComposeMessageFragment(), "pane2").commit();
+        getFragmentManager().beginTransaction().add(R.id.left_pane, new ConversationListFragment(), CONVERSATION_LIST_TAG).commit();
+        getFragmentManager().beginTransaction().add(R.id.right_pane, new ComposeMessageFragment(), COMPOSE_MESSAGE_TAG).commit();
         
         mPane.openPane();
+    }
+    
+    @Override
+    protected void onNewIntent(Intent intent) {
+        // Handle intents that occur after the activity has already been created.
+        getListFragment().sync();
     }
     
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         
         // TODO: this is ugly
-        getFragmentManager().findFragmentById(R.id.pane2).onActivityResult(requestCode, resultCode, data);
+        getMessageFragment().onActivityResult(requestCode, resultCode, data);
     }
     
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -109,15 +119,19 @@ public class MessagesActivity extends Activity {
         mThreadId = threadId;
         mChangeThread = true;
         
-        ComposeMessageFragment composeFragment = (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
-        composeFragment.openThread(threadId, true);
-        composeFragment.reloadTitle();
+        ComposeMessageFragment composeMessageFragment = getMessageFragment();
+        composeMessageFragment.openThread(threadId, true);
+        composeMessageFragment.reloadTitle();
         
 //        mPane.closePane();
     }
     
     private ComposeMessageFragment getMessageFragment() {
-        return (ComposeMessageFragment) getFragmentManager().findFragmentByTag("pane2");
+        return (ComposeMessageFragment) getFragmentManager().findFragmentByTag(COMPOSE_MESSAGE_TAG);
+    }
+    
+    private ConversationListFragment getListFragment() {
+        return (ConversationListFragment) getFragmentManager().findFragmentByTag(CONVERSATION_LIST_TAG);
     }
     
     public void onThreadDelete(Collection<Long> threadIds) {

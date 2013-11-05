@@ -254,6 +254,13 @@ public class ConversationListFragment extends ListFragment implements DraftCache
 //        // Handle intents that occur after the activity has already been created.
 //        startAsyncQuery();
 //    }
+    /**
+     * Called from MessagesActivity from onNewIntent() when an intent occurs
+     * after MessagesActivity has already been created.
+     */
+    public void sync() {
+        startAsyncQuery();
+    }
 
     @Override
     public void onStart() {

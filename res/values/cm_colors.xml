@@ -35,7 +35,7 @@
     <color name="widget_unread_text">#777777</color>
     <color name="widget_loading">#000000</color>
     
-    <!-- Matt's colors -->
+    <!-- Colors for drawing simple layouts -->
     <color name="white">#ffffff</color>
     <color name="lt_lt_gray">#EEEEEE</color>
     <color name="lt_gray">#E0E0E0</color>
