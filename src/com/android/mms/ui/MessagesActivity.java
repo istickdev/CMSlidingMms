@@ -35,7 +35,7 @@ public class MessagesActivity extends Activity {
         super.onCreate(savedInstanceState);
         
 //        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
-        
+      
         setContentView(R.layout.messages_screen);
 
         mPane = (SlidingPaneLayout) findViewById(R.id.pane);
@@ -85,8 +85,8 @@ public class MessagesActivity extends Activity {
             }
         });
 
-        getFragmentManager().beginTransaction().add(R.id.left_pane, new ConversationListFragment(), CONVERSATION_LIST_TAG).commit();
-        getFragmentManager().beginTransaction().add(R.id.right_pane, new ComposeMessageFragment(), COMPOSE_MESSAGE_TAG).commit();
+//        getFragmentManager().beginTransaction().add(R.id.left_pane, new ConversationListFragment(), CONVERSATION_LIST_TAG).commit();
+//        getFragmentManager().beginTransaction().add(R.id.right_pane, new ComposeMessageFragment(), COMPOSE_MESSAGE_TAG).commit();
         
         mPane.openPane();
     }

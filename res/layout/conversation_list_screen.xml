@@ -23,8 +23,7 @@
     android:layout_height="match_parent"  >
 
     <ListView android:id="@android:id/list"
-        style="?android:attr/listViewWhiteStyle"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:drawSelectorOnTop="false"
         android:scrollbarStyle="insideOverlay"
@@ -33,7 +32,7 @@
         android:fadingEdgeLength="16dip" />
 
     <TextView android:id="@+id/empty"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:gravity="center"
         android:text="@string/loading_conversations"
