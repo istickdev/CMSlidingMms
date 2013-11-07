@@ -252,6 +252,9 @@ public class ComposeMessageFragment extends Fragment
     private static final String KEY_FORWARDED_MESSAGE = "forwarded_message";
 
     private static final String EXIT_ECM_RESULT = "exit_ecm_result";
+    
+    private static final String INTENT_ACTION = "action";
+    private static final String INTEND_DATA = "data";
 
     // When the conversation has a lot of messages and a new message is sent, the list is scrolled
     // so the user sees the just sent message. If we have to scroll the list more than 20 items,
@@ -285,6 +288,7 @@ public class ComposeMessageFragment extends Fragment
     private boolean mForwardMessageMode;
     
     private Intent mConversationIntent;
+    private Bundle mConversationArgs;
 
     private View mTopPanel;                 // View containing the recipient and subject editors
     private View mBottomPanel;              // View containing the text editor, send button, ec.
@@ -320,7 +324,7 @@ public class ComposeMessageFragment extends Fragment
                                         // editor thinking it's a draft message. This flag should
                                         // help clarify the situation.
     
-    private boolean mThreadChangeCalled;
+    private boolean mShowAfterQuery;
     private boolean mHasFocus;
 
     private WorkingMessage mWorkingMessage;         // The message currently being composed.
@@ -389,7 +393,10 @@ public class ComposeMessageFragment extends Fragment
     // keys for extras and icicles
     public final static String THREAD_ID = "thread_id";
     private final static String RECIPIENTS = "recipients";
-
+    
+    // For adding fragment to a SlidingPaneLayout in an activity.
+    private PaneController mPaneController = null;
+    
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
         Thread current = Thread.currentThread();
@@ -399,6 +406,32 @@ public class ComposeMessageFragment extends Fragment
         // Prepend current thread ID and name of calling method to the message.
         logMsg = "[" + tid + "] [" + methodName + "] " + logMsg;
         Log.d(TAG, logMsg);
+    }
+    
+    // probably don't need this method
+    public void setArguments(Bundle args) {
+        super.setArguments(args);
+        
+        mConversationArgs = args;
+        
+        mConversationIntent = new Intent();
+        if(args == null) {
+            return;
+        }
+        String action = args.getString("action");
+        if(action == null || action != Intent.ACTION_MAIN) {
+            mShowAfterQuery = true;
+        }
+        mConversationIntent.setAction(action);
+        mConversationIntent.putExtras(args);
+        String dataString = args.getString("data");
+        if(dataString != null) {
+            mConversationIntent.setData(Uri.parse(args.getString("data")));
+        }
+    }
+    
+    public void setInstanceState(Bundle instanceState) {
+        mConversationArgs = instanceState;
     }
 
     private void editSlideshow() {
@@ -1836,7 +1869,7 @@ public class ComposeMessageFragment extends Fragment
         return mConversation.getRecipients();
     }
 
-    private void updateTitle(ContactList list) {
+    public void updateTitle(ContactList list) {
         if(!mHasFocus) {
             return;
         }
@@ -1987,7 +2020,13 @@ public class ComposeMessageFragment extends Fragment
     
     public void onAttach(Activity activity) {
         super.onAttach(activity);
-        mConversationIntent = new Intent(activity, MessagesActivity.class);
+    }
+    
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mConversationIntent = new Intent();
+        if(savedInstanceState != null) {
+        }
     }
     
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -2133,7 +2172,9 @@ public class ComposeMessageFragment extends Fragment
         // We don't attempt to handle the Intent.ACTION_SEND when saveInstanceState is non-null.
         // saveInstanceState is non-null when this activity is killed. In that case, we already
         // handled the attachment or the send, so we don't try and parse the intent again.
-        if (savedInstanceState == null && (handleSendIntent() || handleForwardedMessage())) {
+        if ((handleSendIntent() || handleForwardedMessage())) {
+//            mShowAfterQuery = true; // this is not necessary because we show the messages
+                                      // before initializing, in the case of a SEND or VIEW.
             mShouldLoadDraft = false;
         }
 
@@ -2174,7 +2215,82 @@ public class ComposeMessageFragment extends Fragment
 
         mMsgListAdapter.setIsGroupConversation(mConversation.getRecipients().size() > 1);
     }
+    
+    public void setIntent(Intent intent) {
+        mConversationIntent = intent;
+        initialize(null, 0);
+    }
 
+    public void onNewIntent(Intent intent) {
+        mConversationIntent = intent;
+        Log.d("Mms - cmf new intent", "[intent]: " + intent.getData());
+        Conversation conversation = null;
+        mSentMessage = false;
+
+        // If we have been passed a thread_id, use that to find our
+        // conversation.
+
+        // Note that originalThreadId might be zero but if this is a draft and we save the
+        // draft, ensureThreadId gets called async from WorkingMessage.asyncUpdateDraftSmsMessage
+        // the thread will get a threadId behind the UI thread's back.
+        long originalThreadId = mConversation.getThreadId();
+        long threadId = intent.getLongExtra(THREAD_ID, 0);
+        Uri intentUri = intent.getData();
+
+        boolean sameThread = false;
+        if (threadId > 0) {
+            conversation = Conversation.get(getActivity(), threadId, false);
+        } else {
+            if (mConversation.getThreadId() == 0) {
+                // We've got a draft. Make sure the working recipients are synched
+                // to the conversation so when we compare conversations later in this function,
+                // the compare will work.
+                mWorkingMessage.syncWorkingRecipients();
+            }
+            // Get the "real" conversation based on the intentUri. The intentUri might specify
+            // the conversation by a phone number or by a thread id. We'll typically get a threadId
+            // based uri when the user pulls down a notification while in ComposeMessageActivity and
+            // we end up here in onNewIntent. mConversation can have a threadId of zero when we're
+            // working on a draft. When a new message comes in for that same recipient, a
+            // conversation will get created behind CMA's back when the message is inserted into
+            // the database and the corresponding entry made in the threads table. The code should
+            // use the real conversation as soon as it can rather than finding out the threadId
+            // when sending with "ensureThreadId".
+            conversation = Conversation.get(getActivity(), intentUri, false);
+        }
+
+        if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
+            log("onNewIntent: data=" + intentUri + ", thread_id extra is " + threadId +
+                    ", new conversation=" + conversation + ", mConversation=" + mConversation);
+        }
+
+        // this is probably paranoid to compare both thread_ids and recipient lists,
+        // but we want to make double sure because this is a last minute fix for Froyo
+        // and the previous code checked thread ids only.
+        // (we cannot just compare thread ids because there is a case where mConversation
+        // has a stale/obsolete thread id (=1) that could collide against the new thread_id(=1),
+        // even though the recipient lists are different)
+        sameThread = ((conversation.getThreadId() == mConversation.getThreadId() ||
+                mConversation.getThreadId() == 0) &&
+                conversation.equals(mConversation));
+
+        if (sameThread) {
+            log("onNewIntent: same conversation");
+            if (mConversation.getThreadId() == 0) {
+                mConversation = conversation;
+                mWorkingMessage.setConversation(mConversation);
+                updateThreadIdIfRunning();
+            }
+        } else {
+            if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
+                log("onNewIntent: different conversation");
+            }
+            saveDraft(false);    // if we've got a draft, save it first
+
+            initialize(null, originalThreadId);
+        }
+        loadMessagesAndDraft(0);
+    }
     // TODO
 //    @Override
 //    protected void onNewIntent(Intent intent) {
@@ -2260,11 +2376,119 @@ public class ComposeMessageFragment extends Fragment
 //                    mConversation + ", MISMATCH!", this);
         }
     }
+    /**
+     * Open thread based on intent. If intent is null, we open a new message.
+     * If intent is not null, it will either have a THREAD_ID extra or a URI
+     * for the conversation we want.
+     * If showAfter is true, we have either opened a conversation from the 
+     * ConversationListFragment, or we want to create a new message, so we 
+     * want to close the SlidingPane to reveal the conversation, after querying.
+     */
+    public void openThread(Intent intent, boolean showAfter) {
+        
+        if(showAfter && mPaneController != null) {
+            mPaneController.close();
+        }
+        
+        if(intent == null) {
+            Log.d("Mms-----", "openThread: intent is null");
+            openThread(createIntent(getActivity(), 0), showAfter);
+        }
+        
+        
+        // This is essential! We will not reload without this
+        mMessagesAndDraftLoaded = false;
+        
+        mShowAfterQuery = showAfter;
+        mConversationIntent = intent;
+        
+        boolean extras = (mConversationIntent.getExtras() != null);
+        toast("[openThread] " + mConversationIntent.getAction() + "\n" + mConversationIntent.getDataString() +
+                "\n" + "hasextras: " + extras);
+        if(extras) {
+            toast("extra text: " + mConversationIntent.getExtras().getString(Intent.EXTRA_TEXT));
+        }
+        
+        Conversation conversation = null;
+        mSentMessage = false;
+
+        // If we have been passed a thread_id, use that to find our
+        // conversation.
+
+        // Note that originalThreadId might be zero but if this is a draft and we save the
+        // draft, ensureThreadId gets called async from WorkingMessage.asyncUpdateDraftSmsMessage
+        // the thread will get a threadId behind the UI thread's back.
+        long originalThreadId = mConversation.getThreadId();
+        long threadId = mConversationIntent.getLongExtra(THREAD_ID, 0);
+        Log.d("Mms openintent: ", "tid: " + threadId + " uri: " + intent.getDataString());
+        Uri intentUri = mConversationIntent.getData();
+
+        boolean sameThread = false;
+        if (threadId > 0) {
+            conversation = Conversation.get(getActivity(), threadId, false);
+        } else {
+            if (mConversation.getThreadId() == 0) {
+                Log.d("Mms [openIntent]", "mConversation id is 0");
+                // We've got a draft. Make sure the working recipients are synched
+                // to the conversation so when we compare conversations later in this function,
+                // the compare will work.
+                mWorkingMessage.syncWorkingRecipients();
+            }
+            // Get the "real" conversation based on the intentUri. The intentUri might specify
+            // the conversation by a phone number or by a thread id. We'll typically get a threadId
+            // based uri when the user pulls down a notification while in ComposeMessageActivity and
+            // we end up here in onNewIntent. mConversation can have a threadId of zero when we're
+            // working on a draft. When a new message comes in for that same recipient, a
+            // conversation will get created behind CMA's back when the message is inserted into
+            // the database and the corresponding entry made in the threads table. The code should
+            // use the real conversation as soon as it can rather than finding out the threadId
+            // when sending with "ensureThreadId".
+            conversation = Conversation.get(getActivity(), intentUri, false);
+            Log.d("Mms [openIntent]", "convo: " + conversation.getRecipients().formatNames(","));
+        }
+
+        if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
+            log("onNewIntent: data=" + intentUri + ", thread_id extra is " + threadId +
+                    ", new conversation=" + conversation + ", mConversation=" + mConversation);
+        }
+
+        // this is probably paranoid to compare both thread_ids and recipient lists,
+        // but we want to make double sure because this is a last minute fix for Froyo
+        // and the previous code checked thread ids only.
+        // (we cannot just compare thread ids because there is a case where mConversation
+        // has a stale/obsolete thread id (=1) that could collide against the new thread_id(=1),
+        // even though the recipient lists are different)
+        sameThread = ((conversation.getThreadId() == mConversation.getThreadId() ||
+                mConversation.getThreadId() == 0) &&
+                conversation.equals(mConversation));
+
+        if (sameThread) {
+            log("onNewIntent: same conversation");
+            if (mConversation.getThreadId() == 0) {
+                mConversation = conversation;
+                mWorkingMessage.setConversation(mConversation);
+                updateThreadIdIfRunning();
+                // TODO this implementation is out-dated. We need to change onPrepareOptionsMenu
+//                invalidateOptionsMenu();
+            }
+        } else {
+            if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
+                log("onNewIntent: different conversation");
+            }
+            
+            saveDraft(false);    // if we've got a draft, save it first
+
+            initialize(null, originalThreadId);
+        }
+        mMsgListAdapter.changeCursor(null);
+        loadMessagesAndDraft(0);
+    }
     //TODO delete toast and comments
     public void openThread(long threadId, boolean fromList) {
-        mThreadChangeCalled = fromList;
+        if(mShowAfterQuery == false)
+            mShowAfterQuery = fromList;
         mConversationIntent = ComposeMessageFragment.createIntent(getActivity(), threadId);
-        mConversationIntent.putExtra(THREAD_ID, threadId);
+//        mConversationIntent.putExtra(THREAD_ID, threadId);
 //        toast("mConversationIntent " + mConversationIntent.getData());
         
         Conversation conversation = null;
@@ -2280,6 +2504,7 @@ public class ComposeMessageFragment extends Fragment
         Intent intent = mConversationIntent;
 //        long threadId = intent.getLongExtra(THREAD_ID, 0);
         Uri intentUri = intent.getData();
+        Log.d("Mms openintent: ", "tid: " + threadId + " uri: " + intent.getDataString());
         
 //        toast("in openThread, threadId: " + threadId);
 
@@ -2435,7 +2660,8 @@ public class ComposeMessageFragment extends Fragment
     }
     
     void toast(String msg) {
-        Toast.makeText(getActivity(), msg, Toast.LENGTH_SHORT).show();
+        Log.d("Mms   ____", msg);
+//        Toast.makeText(getActivity(), msg, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -2531,7 +2757,6 @@ public class ComposeMessageFragment extends Fragment
         // items.
         mConversation.blockMarkAsRead(true);
         mConversation.markAsRead(true);         // dismiss any notifications for this convo
-        startMsgListQuery();
         updateSendFailedNotification();
     }
 
@@ -2581,12 +2806,19 @@ public class ComposeMessageFragment extends Fragment
         outState.putString(RECIPIENTS, getRecipients().serialize());
 
         mWorkingMessage.writeStateToBundle(outState);
+        if(mConversationArgs != null)
+        outState.putAll(mConversationArgs);
 
         if (mSendDiscreetMode) {
             outState.putBoolean(KEY_EXIT_ON_SENT, mSendDiscreetMode);
         }
         if (mForwardMessageMode) {
             outState.putBoolean(KEY_FORWARDED_MESSAGE, mForwardMessageMode);
+        }
+        
+        for (String key: outState.keySet())
+        {
+          Log.d ("Mms++++++++++++++", key + " is a key in the outState");
         }
     }
 
@@ -3175,7 +3407,7 @@ public class ComposeMessageFragment extends Fragment
                 break;
             case MENU_PREFERENCES: {
                 Intent intent = new Intent(getActivity(), MessagingPreferenceActivity.class);
-                getActivity().startActivityIfNeeded(intent, -1);
+                getActivity().startActivityIfNeeded(intent, 5);
                 break;
             }
             case MENU_DEBUG_DUMP:
@@ -3700,7 +3932,8 @@ public class ComposeMessageFragment extends Fragment
     // Handle send actions, where we're told to send a picture(s) or text.
     private boolean handleSendIntent() {
         Intent intent = mConversationIntent;
-        Bundle extras = intent.getExtras();
+        
+        Bundle extras = mConversationIntent.getExtras();
         if (extras == null) {
             return false;
         }
@@ -3719,6 +3952,7 @@ public class ComposeMessageFragment extends Fragment
                 return true;
             } else if (extras.containsKey(Intent.EXTRA_TEXT)) {
                 mWorkingMessage.setText(extras.getString(Intent.EXTRA_TEXT));
+                Log.d("Mms handlesendintent", "set text " + extras.getString(Intent.EXTRA_TEXT));
                 return true;
             }
         } else if (Intent.ACTION_SEND_MULTIPLE.equals(action) &&
@@ -4050,17 +4284,17 @@ public class ComposeMessageFragment extends Fragment
     }
 
     private void startMsgListQuery(int token) {
+        Log.d("mms startmsglistquery", "start message list query STARTED");
         if (mSendDiscreetMode) {
             return;
         }
         Uri conversationUri = mConversation.getUri();
 
         if (conversationUri == null) {
-            if(mThreadChangeCalled) {
-                mThreadChangeCalled = false;
-                MessagesActivity ma = (MessagesActivity) getActivity();
-                ma.close();
-            }
+//            if(mShowAfterQuery && mPaneController != null) {
+//                mShowAfterQuery = false;
+//                mPaneController.close();
+//            }
             log("##### startMsgListQuery: conversationUri is null, bail!");
             return;
         }
@@ -4353,12 +4587,74 @@ public class ComposeMessageFragment extends Fragment
         }
         return NO_DATE_FOR_DIALOG;
     }
+    
+    private void initFragmentState(Bundle bundle) {
+        if(bundle != null) {
+            mConversationIntent.setAction(Intent.ACTION_VIEW);
+            String recipients = bundle.getString(RECIPIENTS);
+            if (LogTag.VERBOSE) log("get mConversation by recipients " + recipients);
+            mConversation = Conversation.get(getActivity(),
+                    ContactList.getByNumbers(recipients,
+                            false /* don't block */, true /* replace number */), false);
+            addRecipientsListeners();
+            mSendDiscreetMode = bundle.getBoolean(KEY_EXIT_ON_SENT, false);
+            mForwardMessageMode = bundle.getBoolean(KEY_FORWARDED_MESSAGE, false);
+
+            if (mSendDiscreetMode) {
+                mMsgListView.setVisibility(View.INVISIBLE);
+            }
+            mWorkingMessage.readStateFromBundle(bundle);
+
+            return;
+        }
+        
+        // If we have been passed a thread_id, use that to find our conversation.
+        long threadId = mConversationIntent.getLongExtra(THREAD_ID, 0);
+        if (threadId > 0) {
+            if (LogTag.VERBOSE) log("get mConversation by threadId " + threadId);
+            mConversation = Conversation.get(getActivity(), threadId, false);
+        } else {
+            Uri intentData = mConversationIntent.getData();
+            if (intentData != null) {
+                // try to get a conversation based on the data URI passed to our intent.
+                if (LogTag.VERBOSE) log("get mConversation by intentData " + intentData);
+                mConversation = Conversation.get(getActivity(), intentData, false);
+                mWorkingMessage.setText(getBody(intentData));
+            } else {
+                // special intent extra parameter to specify the address
+                String address = mConversationIntent.getStringExtra("address");
+                if (!TextUtils.isEmpty(address)) {
+                    if (LogTag.VERBOSE) log("get mConversation by address " + address);
+                    mConversation = Conversation.get(getActivity(), ContactList.getByNumbers(address,
+                            false /* don't block */, true /* replace number */), false);
+                } else {
+                    if (LogTag.VERBOSE) log("create new conversation");
+                    mConversation = Conversation.createNew(getActivity());
+                }
+            }
+        }
+        addRecipientsListeners();
+        updateThreadIdIfRunning();
+
+        mSendDiscreetMode = mConversationIntent.getBooleanExtra(KEY_EXIT_ON_SENT, false);
+        mForwardMessageMode = mConversationIntent.getBooleanExtra(KEY_FORWARDED_MESSAGE, false);
+        if (mSendDiscreetMode) {
+            mMsgListView.setVisibility(View.INVISIBLE);
+        }
+        if (mConversationIntent.hasExtra("sms_body")) {
+            mWorkingMessage.setText(mConversationIntent.getStringExtra("sms_body"));
+        }
+        mWorkingMessage.setSubject(mConversationIntent.getStringExtra("subject"), false);
+    }
 
     // TODO
     private void initActivityState(Bundle bundle) {
+//        if(mConversationIntent == null) {
+//            mConversationIntent = createIntent(getActivity(), 0);
+//        }
         Intent intent = mConversationIntent;
         if (bundle != null) {
-            getActivity().setIntent(mConversationIntent.setAction(Intent.ACTION_VIEW));
+            mConversationIntent.setAction(Intent.ACTION_VIEW);
             String recipients = bundle.getString(RECIPIENTS);
             if (LogTag.VERBOSE) log("get mConversation by recipients " + recipients);
             mConversation = Conversation.get(getActivity(),
@@ -4419,16 +4715,21 @@ public class ComposeMessageFragment extends Fragment
         mHasFocus = true;
         initFocus();
         reloadTitle();
+        
+        if(mShowAfterQuery) {
+            startMsgListQuery();
+        }
 //        mConversation.blockMarkAsRead(true);
 //        mConversation.markAsRead(true);
 //        startMsgListQuery();
-        loadMessageContent();
+//        loadMessageContent();
     }
     
     public void onHide() {
         mHasFocus = false;
         mTextEditor.clearFocus();
-        mRecipientsEditor.clearFocus();
+        if(this.isRecipientsEditorVisible())
+            mRecipientsEditor.clearFocus();
     }
 
     private void initFocus() {
@@ -4437,6 +4738,7 @@ public class ComposeMessageFragment extends Fragment
         }
         
         mTextEditor.clearFocus();
+        if(mRecipientsEditor != null)
         mRecipientsEditor.clearFocus();
 
         // If the recipients editor is visible, there is nothing in it,
@@ -4461,8 +4763,9 @@ public class ComposeMessageFragment extends Fragment
 
         @Override
         public void onContentChanged(MessageListAdapter adapter) {
+            // TODO do this some other way
             MessagesActivity ma = (MessagesActivity) getActivity();
-            if(ma.getDeleteFromList()) {
+            if(ma != null && ma.getDeleteFromList()) {
                 ma.setDeleteFromList(false);
                 long threadId = mConversation.getThreadId();
                 if(threadId == ma.getThreadId()) {
@@ -4480,6 +4783,8 @@ public class ComposeMessageFragment extends Fragment
             else {
                 startMsgListQuery();
             }
+            
+//            openThread(mConversationIntent, false);
         }
     };
 
@@ -4669,7 +4974,12 @@ public class ComposeMessageFragment extends Fragment
                         // the message list to the end when we send a message, but have to wait
                         // until the DB has changed. We also want to scroll the list when a
                         // new message has arrived.
-                        smoothScrollToEnd(mScrollOnSend || lastMsgId != mLastMessageId, 0);
+                        if(mShowAfterQuery) {
+                            mMsgListView.setSelection(mMsgListAdapter.getCount() - 1);
+                        }
+                        else {
+                            smoothScrollToEnd(mScrollOnSend || lastMsgId != mLastMessageId, 0);
+                        }
                         mLastMessageId = lastMsgId;
                         mScrollOnSend = false;
                     }
@@ -4693,12 +5003,12 @@ public class ComposeMessageFragment extends Fragment
                     // FIXME: freshing layout changes the focused view to an unexpected
                     // one, set it back to TextEditor forcely.
                     // TODO do something to this! this whole fragment needs work :/
-                    if(mThreadChangeCalled) {
-                        mThreadChangeCalled = false;
-                        MessagesActivity ma = (MessagesActivity) getActivity();
-                        ma.close();
+                    if(mShowAfterQuery) {
+                        mShowAfterQuery = false;
+//                        mPaneController.close();
                         
-                        mTextEditor.requestFocus();
+                        
+//                        mTextEditor.requestFocus();
                     }
 //                    getActivity().invalidateOptionsMenu();    // some menu items depend on the adapter's count
                     return;
@@ -5128,7 +5438,7 @@ public class ComposeMessageFragment extends Fragment
                 updateTitle(recipients);
 
                 // The contact information for one (or more) of the recipients has changed.
-                // Rebuild the message list so each MessageItem will get the last contact info.
+                // Rebuild the message list so each MessageItem will get the latest contact info.
                 mMsgListAdapter.notifyDataSetChanged();
 
                 // Don't do this anymore. When we're showing chips, we don't want to switch from
@@ -5288,4 +5598,13 @@ public class ComposeMessageFragment extends Fragment
 //        }
 //        return super.onCreateDialog(id, args);
 //    }
+    
+    public interface PaneController {
+        void close();
+        void open();
+    }
+    
+    public void setPaneController(PaneController paneController) {
+        mPaneController = paneController;
+    }
 }

@@ -27,7 +27,8 @@
         android:id="@+id/pane"
         android:layout_weight="1"
         android:layout_width="0dp"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        >
         
         <FrameLayout
             android:id="@+id/left_pane"
@@ -52,11 +53,10 @@
             
             <fragment
                 android:id="@+id/compose_message_fragment"
-                android:layout_width="fill_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="fill_parent"
                 class="com.android.mms.ui.ComposeMessageFragment"
                 android:tag="messages" />
-            
         </FrameLayout>
 
     </android.support.v4.widget.SlidingPaneLayout>

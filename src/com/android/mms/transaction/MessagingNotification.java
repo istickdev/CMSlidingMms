@@ -812,6 +812,7 @@ public class MessagingNotification {
             return null;
         }
         Intent clickIntent = ComposeMessageFragment.createIntent(context, threadId);
+        clickIntent.setAction(Intent.ACTION_VIEW);
         clickIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP);

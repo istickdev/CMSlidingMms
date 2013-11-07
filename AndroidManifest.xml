@@ -92,19 +92,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="vnd.android-dir/mms-sms" />
             </intent-filter>
-        </activity>
-
-        <activity android:name=".ui.ComposeMessageActivity"
-                  android:configChanges="orientation|screenSize|keyboardHidden"
-                  android:windowSoftInputMode="stateHidden|adjustResize"
-                  android:theme="@style/MmsHoloTheme"
-                  android:parentActivityName=".ui.ConversationList"
-                  android:launchMode="singleTop" >
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="vnd.android-dir/mms-sms" />
-            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.SENDTO" />
@@ -138,8 +125,9 @@
            </intent-filter>
         </activity>
 
+
         <activity-alias android:name=".ui.ForwardMessageActivity"
-                  android:targetActivity=".ui.ComposeMessageActivity"
+                  android:targetActivity=".ui.MessagesActivity"
                   android:configChanges="orientation|screenSize|keyboardHidden"
                   android:windowSoftInputMode="stateHidden"
                   android:theme="@style/MmsHoloTheme" >
@@ -176,7 +164,7 @@
         <activity android:name=".ui.SelectRecipientsList"
             android:theme="@style/MmsHoloTheme"
             android:label="@string/select_recipients"
-            android:parentActivityName=".ui.ComposeMessageActivity">
+            android:parentActivityName=".ui.MessagesActivity">
         </activity>
 
         <activity android:name=".ui.RecipientListActivity"
