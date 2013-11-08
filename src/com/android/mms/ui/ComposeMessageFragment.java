@@ -2383,21 +2383,34 @@ public class ComposeMessageFragment extends Fragment
 //                    mConversation + ", MISMATCH!", this);
         }
     }
-    /*
-     * Open thread based on intent. If intent is null, we open a new message.
-     * If intent is not null, it will either have a THREAD_ID extra or a URI
-     * for the conversation we want.
-     * fromList tells us whether the conversation was opened from a list or from
-     * a VIEW or SEND intent. 
-     */
+    
     public void openThread(Intent intent, boolean fromList) {
+        mOpenedFromList = fromList;
+        mConversationIntent = intent;
+        mMsgListAdapter.changeCursor(null);
         
-        resetMessage();
+        Conversation conversation = Conversation.get(getActivity(), mConversationIntent.getData(), false);
+        updateTitle(conversation.getRecipients());
+        toast("OPEN CONVERSATION " + conversation.toString());
+        // If we open from the list, we will close the pane, (which sets mHasFocus to true),
+        // then load messages.
+        // Otherwise, if we have a SEND or VIEW, we already know we have focus, so mHasFocus
+        // is set to true and we just load messages without messing with the pane.
+        if(fromList && mPaneController != null) {
+            mPaneController.close();
+        } else {
+            openThread(mConversationIntent);
+        }
+    }
+    
+    /*
+     * The intent will either have a THREAD_ID extra or a URI
+     * for the conversation we want.
+     */
+    public void openThread(Intent intent) {
         
         // This is essential! We will not reload without this
         mMessagesAndDraftLoaded = false;
-        
-        mConversationIntent = intent;
         
         boolean extras = (mConversationIntent.getExtras() != null);
         toast("[openThread] " + mConversationIntent.getAction() + "\n" + mConversationIntent.getDataString() +
@@ -2478,17 +2491,7 @@ public class ComposeMessageFragment extends Fragment
             initialize(null, originalThreadId);
         }
         mMsgListAdapter.changeCursor(null);
-        
-        // If we open from the list, we will close the pane, (which sets mHasFocus to true),
-        // then load messages.
-        // Otherwise, if we have a SEND or VIEW, we already know we have focus, so mHasFocus
-        // is set to true and we just load messages without messing with the pane.
-        if(fromList && mPaneController != null) {
-            mPaneController.close();
-        }
-        else {
-            loadMessagesAndDraft(0);
-        }
+        loadMessagesAndDraft(0);
     }
     
     void toast(String msg) {
@@ -4392,11 +4395,6 @@ public class ComposeMessageFragment extends Fragment
         // Hide the subject editor.
         showSubjectEditor(false);
 
-        // Focus to the text editor.
-        if(mHasFocus) { // TODO: may not need this
-            mTextEditor.requestFocus();
-        }
-
         // We have to remove the text change listener while the text editor gets cleared and
         // we subsequently turn the message back into SMS. When the listener is listening while
         // doing the clearing, it's fighting to update its counts and itself try and turn
@@ -4409,6 +4407,8 @@ public class ComposeMessageFragment extends Fragment
         mWorkingMessage.clearConversation(mConversation, false);
         mWorkingMessage = WorkingMessage.createEmpty(this);
         mWorkingMessage.setConversation(mConversation);
+        
+//        mMsgListAdapter.changeCursor(null);
 
         hideRecipientEditor();
         drawBottomPanel();
@@ -4427,6 +4427,11 @@ public class ComposeMessageFragment extends Fragment
 
         mLastRecipientCount = 0;
         mSendingMessage = false;
+        
+     // Focus to the text editor.
+        if(mHasFocus) { // TODO: may not need this
+            mTextEditor.requestFocus();
+        }
 //        getActivity().invalidateOptionsMenu();
    }
 
@@ -4604,7 +4609,10 @@ public class ComposeMessageFragment extends Fragment
     
     public void onShow() {
         reloadTitle();
-        loadMessageContent();
+//        loadMessageContent();
+        if(mOpenedFromList) {
+            openThread(mConversationIntent);
+        }
     }
     
     public void onHide() {
@@ -4865,6 +4873,7 @@ public class ComposeMessageFragment extends Fragment
                         // until the DB has changed. We also want to scroll the list when a
                         // new message has arrived.
                         if(mOpenedFromList) {
+                            mOpenedFromList = false;
                             mMsgListView.setSelection(mMsgListAdapter.getCount() - 1);
                         }
                         else {

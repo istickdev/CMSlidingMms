@@ -56,10 +56,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
 
             @Override
             public void onPanelOpened(View view) {
-                ActionBar ab = getActionBar();
-                ab.setTitle(R.string.app_label);
-                ab.setSubtitle(null);
-                ab.setDisplayHomeAsUpEnabled(false);
+                initActionBar();
                 
                 getListFragment().setHasOptionsMenu(true);
                 ComposeMessageFragment composeMessageFragment = getMessageFragment();
@@ -101,6 +98,13 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
 //        getFragmentManager().beginTransaction().add(R.id.right_pane, new ComposeMessageFragment(), COMPOSE_MESSAGE_TAG).commit();
         
 //        mSlidingPane.openPane();
+    }
+    
+    private void initActionBar() {
+        ActionBar ab = getActionBar();
+        ab.setTitle(R.string.app_label);
+        ab.setSubtitle(null);
+        ab.setDisplayHomeAsUpEnabled(false);
     }
     
     public void onResume() {
@@ -165,6 +169,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         switch (item.getItemId()) {
             case android.R.id.home:
                 mSlidingPane.openPane();
+                initActionBar();
                 break;
         }
         return super.onOptionsItemSelected(item);
@@ -177,22 +182,22 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         }
 //        setIntent(intent);
         
+        ComposeMessageFragment composeMessageFragment = getMessageFragment();
+        composeMessageFragment.setShouldHaveFocus(true);
         // If we are opening a thread that is already open, we will just show the pane
         // and load message content. If threadId is zero, we are creating a new message,
         // so we want to just clear the current conversation no matter what (even if there
         // is no conversation) to avoid text getting uncleared.
         if(mThreadId == threadId && threadId != 0) {
             mSlidingPane.closePane();
-            return;
+        }
+        else {
+            composeMessageFragment.openThread(intent, true);
         }
         mThreadId = threadId;
-        mChangeThread = true;
         
-        ComposeMessageFragment composeMessageFragment = getMessageFragment();
-        composeMessageFragment.setShouldHaveFocus(true);
-        composeMessageFragment.openThread(intent, true);
 //        composeMessageFragment.openThread(threadId, true);
-        composeMessageFragment.reloadTitle();
+//        composeMessageFragment.reloadTitle();
         
 //        mSlidingPane.closePaneNoAnimation();
         

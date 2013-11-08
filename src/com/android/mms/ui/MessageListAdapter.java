@@ -38,6 +38,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.AbsListView;
 import android.widget.CursorAdapter;
 import android.widget.ListView;
@@ -51,6 +52,8 @@ import com.google.android.mms.MmsException;
 public class MessageListAdapter extends CursorAdapter {
     private static final String TAG = "MessageListAdapter";
     private static final boolean LOCAL_LOGV = false;
+    
+    private DecelerateInterpolator mInterpolator;
 
     static final String[] PROJECTION = new String[] {
         // TODO: should move this symbol into com.android.mms.telephony.Telephony.
@@ -128,6 +131,11 @@ public class MessageListAdapter extends CursorAdapter {
     private boolean mIsGroupConversation;
     private boolean mFullTimestamp;
     private boolean mSentTimestamp;
+    
+    private Handler mHandler;
+    private AnimateRunnable mAnimateRunnable;
+    
+    private int mAnimCount;
 
     public MessageListAdapter(
             Context context, Cursor c, ListView listView,
@@ -160,6 +168,12 @@ public class MessageListAdapter extends CursorAdapter {
                 }
             }
         });
+        
+        mInterpolator = new DecelerateInterpolator();
+        mHandler = new Handler();
+        
+        mAnimateRunnable = new AnimateRunnable();
+        mAnimCount = 0;
     }
 
     @Override
@@ -174,10 +188,66 @@ public class MessageListAdapter extends CursorAdapter {
                 int position = cursor.getPosition();
                 mli.bind(msgItem, mIsGroupConversation, position);
                 mli.setMsgListItemHandler(mMsgListItemHandler);
-                
-//                Animation animation = AnimationUtils.loadAnimation(mli.getContext(), R.anim.left_in);
-//                mli.startAnimation(animation);
+
+//                if(view.getVisibility() == View.VISIBLE) {
+//                    if(view.getTag().equals("new")) {
+//                        view.setTag("old");
+//                        Animation animation;
+//                        long delay = mAnimCount * 300;
+//                        if(msgItem.isMe()) {
+//                            animation = AnimationUtils.loadAnimation(view.getContext(), R.anim.left_in);
+//                            animation.setStartOffset(delay);
+//                        }
+//                        else {
+//                            animation = AnimationUtils.loadAnimation(view.getContext(), R.anim.right_in);
+//                            animation.setStartOffset(delay);
+//                        }
+//
+//                        mAnimCount++;
+//                        view.startAnimation(animation);
+//                        //                    mAnimateRunnable.setView(view);
+//                        //                    mAnimateRunnable.setMessageItem(msgItem);
+//                        //                    mHandler.postDelayed(mAnimateRunnable, 300);
+//                    }
+//                }
             }
+        }
+    }
+    
+    private class AnimateRunnable implements Runnable {
+        private MessageItem mMsgItem;
+        private View mView;
+        
+        public AnimateRunnable() {
+            super();
+        }
+        
+//        public AnimateRunnable(MessageItem msgItem, View view) {
+//            super();
+//            mView = view;
+//            mMsgItem = msgItem;
+//        }
+        
+        public void setView(View view) {
+            mView = view;
+        }
+        
+        public void setMessageItem(MessageItem msgItem) {
+            mMsgItem = msgItem;
+        }
+        
+        public void run() {
+            mView.setTag("old");
+            Animation animation;
+            if(mMsgItem.isMe()) {
+                animation = AnimationUtils.loadAnimation(mView.getContext(), R.anim.left_in);
+                animation.setStartOffset(300);
+            }
+            else {
+                animation = AnimationUtils.loadAnimation(mView.getContext(), R.anim.right_in);
+                animation.setStartOffset(300);
+            }
+            mView.startAnimation(animation);
         }
     }
 
@@ -238,6 +308,7 @@ public class MessageListAdapter extends CursorAdapter {
             // We've got an mms item, pre-inflate the mms portion of the view
             view.findViewById(R.id.mms_layout_view_stub).setVisibility(View.VISIBLE);
         }
+        view.setTag("new");
         return view;
     }
 
