@@ -25,36 +25,35 @@
 
     <android.support.v4.widget.SlidingPaneLayout
         android:id="@+id/pane"
-        android:layout_weight="1"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
         >
         
         <FrameLayout
             android:id="@+id/left_pane"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/background" >
 
             <fragment
                 android:id="@+id/conversation_list_fragment"
-                android:layout_width="wrap_content"
-                android:layout_height="fill_parent"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 class="com.android.mms.ui.ConversationListFragment"
                 android:tag="list" />
         </FrameLayout>
 
         <FrameLayout
             android:id="@+id/right_pane"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="@color/background" >
             
             <fragment
                 android:id="@+id/compose_message_fragment"
-                android:layout_width="wrap_content"
-                android:layout_height="fill_parent"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
                 class="com.android.mms.ui.ComposeMessageFragment"
                 android:tag="messages" />
         </FrameLayout>

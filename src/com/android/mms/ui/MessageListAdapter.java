@@ -36,6 +36,8 @@ import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.AbsListView;
 import android.widget.CursorAdapter;
 import android.widget.ListView;
@@ -172,6 +174,9 @@ public class MessageListAdapter extends CursorAdapter {
                 int position = cursor.getPosition();
                 mli.bind(msgItem, mIsGroupConversation, position);
                 mli.setMsgListItemHandler(mMsgListItemHandler);
+                
+//                Animation animation = AnimationUtils.loadAnimation(mli.getContext(), R.anim.left_in);
+//                mli.startAnimation(animation);
             }
         }
     }

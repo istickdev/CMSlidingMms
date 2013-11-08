@@ -324,7 +324,7 @@ public class ComposeMessageFragment extends Fragment
                                         // editor thinking it's a draft message. This flag should
                                         // help clarify the situation.
     
-    private boolean mShowAfterQuery;
+    private boolean mOpenedFromList;
     private boolean mHasFocus;
 
     private WorkingMessage mWorkingMessage;         // The message currently being composed.
@@ -420,7 +420,7 @@ public class ComposeMessageFragment extends Fragment
         }
         String action = args.getString("action");
         if(action == null || action != Intent.ACTION_MAIN) {
-            mShowAfterQuery = true;
+            mOpenedFromList = true;
         }
         mConversationIntent.setAction(action);
         mConversationIntent.putExtras(args);
@@ -602,6 +602,8 @@ public class ComposeMessageFragment extends Fragment
             return false;
         }
     };
+    
+//    private final OnKeyListener mEditKeyListener = new OnKeyListener()
 
     /**
      * Return the messageItem associated with the type ("mms" or "sms") and message id.
@@ -1964,7 +1966,7 @@ public class ComposeMessageFragment extends Fragment
                     final InputMethodManager inputManager = (InputMethodManager)
                             getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                     if (inputManager == null || !inputManager.isFullscreenMode()) {
-//                        mTextEditor.requestFocus();
+                        mTextEditor.requestFocus();
                     }
                 }
             }
@@ -1974,6 +1976,7 @@ public class ComposeMessageFragment extends Fragment
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
                 if(mHasFocus) {
+                    toast("&&&&&&&&&&&&&&&&&&&&&&& focus &&&&&&&&&&&&&&&&&&&&");
                     if (!hasFocus) {
                         RecipientsEditor editor = (RecipientsEditor) v;
                         ContactList contacts = editor.constructContactsFromInput(false);
@@ -1981,10 +1984,14 @@ public class ComposeMessageFragment extends Fragment
                         updateTitle(contacts);
                     }
                     else {
+                        toast("&&&&&&&&&&&&&&&&&&&&&&& should be opening keyboard &&&&&&&&&&&&&&&&&&&&");
                         final InputMethodManager inputManager = (InputMethodManager)
                                 getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
                         inputManager.showSoftInput(v, 0);
                     }
+                }
+                else {
+                    toast("&&&&&&&&&&&&&&&&&&&&&&& no focus &&&&&&&&&&&&&&&&&&&&");
                 }
             }
         });
@@ -2060,8 +2067,8 @@ public class ComposeMessageFragment extends Fragment
 //        setContentView(gestureOverlayView);
         getActivity().setProgressBarVisibility(false);
 
-        getActivity().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
-                WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+//        getActivity().getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
+//                WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         
         if (unicodeStripping != MessagingPreferenceActivity.UNICODE_STRIPPING_LEAVE_INTACT) {
             boolean stripNonDecodableOnly =
@@ -2376,30 +2383,20 @@ public class ComposeMessageFragment extends Fragment
 //                    mConversation + ", MISMATCH!", this);
         }
     }
-    /**
+    /*
      * Open thread based on intent. If intent is null, we open a new message.
      * If intent is not null, it will either have a THREAD_ID extra or a URI
      * for the conversation we want.
-     * If showAfter is true, we have either opened a conversation from the 
-     * ConversationListFragment, or we want to create a new message, so we 
-     * want to close the SlidingPane to reveal the conversation, after querying.
+     * fromList tells us whether the conversation was opened from a list or from
+     * a VIEW or SEND intent. 
      */
-    public void openThread(Intent intent, boolean showAfter) {
+    public void openThread(Intent intent, boolean fromList) {
         
-        if(showAfter && mPaneController != null) {
-            mPaneController.close();
-        }
-        
-        if(intent == null) {
-            Log.d("Mms-----", "openThread: intent is null");
-            openThread(createIntent(getActivity(), 0), showAfter);
-        }
-        
+        resetMessage();
         
         // This is essential! We will not reload without this
         mMessagesAndDraftLoaded = false;
         
-        mShowAfterQuery = showAfter;
         mConversationIntent = intent;
         
         boolean extras = (mConversationIntent.getExtras() != null);
@@ -2444,7 +2441,6 @@ public class ComposeMessageFragment extends Fragment
             // use the real conversation as soon as it can rather than finding out the threadId
             // when sending with "ensureThreadId".
             conversation = Conversation.get(getActivity(), intentUri, false);
-            Log.d("Mms [openIntent]", "convo: " + conversation.getRecipients().formatNames(","));
         }
 
         if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
@@ -2458,9 +2454,10 @@ public class ComposeMessageFragment extends Fragment
         // (we cannot just compare thread ids because there is a case where mConversation
         // has a stale/obsolete thread id (=1) that could collide against the new thread_id(=1),
         // even though the recipient lists are different)
-        sameThread = ((conversation.getThreadId() == mConversation.getThreadId() ||
-                mConversation.getThreadId() == 0) &&
-                conversation.equals(mConversation));
+//        sameThread = (conversation.getThreadId() == mConversation.getThreadId()) &&
+//                conversation.equals(mConversation);
+        sameThread = (conversation.getThreadId() == mConversation.getThreadId()
+                && conversation.getThreadId() > 0);
 
         if (sameThread) {
             log("onNewIntent: same conversation");
@@ -2481,182 +2478,17 @@ public class ComposeMessageFragment extends Fragment
             initialize(null, originalThreadId);
         }
         mMsgListAdapter.changeCursor(null);
-        loadMessagesAndDraft(0);
-    }
-    //TODO delete toast and comments
-    public void openThread(long threadId, boolean fromList) {
-        if(mShowAfterQuery == false)
-            mShowAfterQuery = fromList;
-        mConversationIntent = ComposeMessageFragment.createIntent(getActivity(), threadId);
-//        mConversationIntent.putExtra(THREAD_ID, threadId);
-//        toast("mConversationIntent " + mConversationIntent.getData());
         
-        Conversation conversation = null;
-        mSentMessage = false;
-
-        // If we have been passed a thread_id, use that to find our
-        // conversation.
-
-        // Note that originalThreadId might be zero but if this is a draft and we save the
-        // draft, ensureThreadId gets called async from WorkingMessage.asyncUpdateDraftSmsMessage
-        // the thread will get a threadId behind the UI thread's back.
-        long originalThreadId = mConversation.getThreadId();
-        Intent intent = mConversationIntent;
-//        long threadId = intent.getLongExtra(THREAD_ID, 0);
-        Uri intentUri = intent.getData();
-        Log.d("Mms openintent: ", "tid: " + threadId + " uri: " + intent.getDataString());
-        
-//        toast("in openThread, threadId: " + threadId);
-
-        boolean sameThread = false;
-        if (threadId > 0) {
-            conversation = Conversation.get(getActivity(), threadId, false);
-        } else {
-//            toast("openThread else, threadId: " + threadId + " mConversation.getThreadID: " + mConversation.getThreadId());
-            if (mConversation.getThreadId() == 0) {
-                // We've got a draft. Make sure the working recipients are synched
-                // to the conversation so when we compare conversations later in this function,
-                // the compare will work.
-                mWorkingMessage.syncWorkingRecipients();
-            }
-            // Get the "real" conversation based on the intentUri. The intentUri might specify
-            // the conversation by a phone number or by a thread id. We'll typically get a threadId
-            // based uri when the user pulls down a notification while in ComposeMessageActivity and
-            // we end up here in onNewIntent. mConversation can have a threadId of zero when we're
-            // working on a draft. When a new message comes in for that same recipient, a
-            // conversation will get created behind CMA's back when the message is inserted into
-            // the database and the corresponding entry made in the threads table. The code should
-            // use the real conversation as soon as it can rather than finding out the threadId
-            // when sending with "ensureThreadId".
-            conversation = Conversation.get(getActivity(), intentUri, false);
+        // If we open from the list, we will close the pane, (which sets mHasFocus to true),
+        // then load messages.
+        // Otherwise, if we have a SEND or VIEW, we already know we have focus, so mHasFocus
+        // is set to true and we just load messages without messing with the pane.
+        if(fromList && mPaneController != null) {
+            mPaneController.close();
         }
-
-//        if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
-//            log("onNewIntent: data=" + intentUri + ", thread_id extra is " + threadId +
-//                    ", new conversation=" + conversation + ", mConversation=" + mConversation);
-//        }
-
-        // this is probably paranoid to compare both thread_ids and recipient lists,
-        // but we want to make double sure because this is a last minute fix for Froyo
-        // and the previous code checked thread ids only.
-        // (we cannot just compare thread ids because there is a case where mConversation
-        // has a stale/obsolete thread id (=1) that could collide against the new thread_id(=1),
-        // even though the recipient lists are different)
-//        sameThread = ((conversation.getThreadId() == mConversation.getThreadId() ||
-//                mConversation.getThreadId() == 0) &&
-//                conversation.equals(mConversation));
-        
-        mMessagesAndDraftLoaded = false;
-        
-        saveDraft(false);
-        initialize(null, originalThreadId);
-
-//        if (sameThread) {
-//            log("onNewIntent: same conversation");
-//            if (mConversation.getThreadId() == 0) {
-//                mConversation = conversation;
-//                mWorkingMessage.setConversation(mConversation);
-//                updateThreadIdIfRunning();
-//                ///invalidateOptionsMenu();
-//            }
-//        } else {
-//            if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
-//                log("onNewIntent: different conversation");
-//            }
-//            saveDraft(false);    // if we've got a draft, save it first
-//
-//            initialize(null, originalThreadId);
-//        }
-//        mSendDiscreetMode = false;
-        
-        if(threadId == 0) {
-            mMsgListAdapter.changeCursor(null);
+        else {
+            loadMessagesAndDraft(0);
         }
-        loadMessagesAndDraft(0);
-//        this.mMsgListAdapter.notifyDataSetChanged();
-//        long threadId = intent.getLongExtra(THREAD_ID, 0);
-//        if (threadId > 0) {
-//            if (LogTag.VERBOSE) log("get mConversation by threadId " + threadId);
-//            mConversation = Conversation.get(getActivity(), threadId, false);
-//        } else {
-//            Uri intentData = intent.getData();
-//            if (intentData != null) {
-//                // try to get a conversation based on the data URI passed to our intent.
-//                if (LogTag.VERBOSE) log("get mConversation by intentData " + intentData);
-//                mConversation = Conversation.get(getActivity(), intentData, false);
-//                mWorkingMessage.setText(getBody(intentData));
-//            } else {
-//                // special intent extra parameter to specify the address
-//                String address = intent.getStringExtra("address");
-//                if (!TextUtils.isEmpty(address)) {
-//                    if (LogTag.VERBOSE) log("get mConversation by address " + address);
-//                    mConversation = Conversation.get(getActivity(), ContactList.getByNumbers(address,
-//                            false /* don't block */, true /* replace number */), false);
-//                } else {
-//                    if (LogTag.VERBOSE) log("create new conversation");
-//                    mConversation = Conversation.createNew(getActivity());
-//                }
-//            }
-//        }
-//        addRecipientsListeners();
-//        updateThreadIdIfRunning();
-//
-//        mSendDiscreetMode = intent.getBooleanExtra(KEY_EXIT_ON_SENT, false);
-//        mForwardMessageMode = intent.getBooleanExtra(KEY_FORWARDED_MESSAGE, false);
-//        if (mSendDiscreetMode) {
-//            mMsgListView.setVisibility(View.INVISIBLE);
-//        }
-//        if (intent.hasExtra("sms_body")) {
-//            mWorkingMessage.setText(intent.getStringExtra("sms_body"));
-//        }
-//        mWorkingMessage.setSubject(intent.getStringExtra("subject"), false);
-//        
-//        // Set up the message history ListAdapter
-//        resetMessageList();
-//
-//        mShouldLoadDraft = true;
-//
-//        // Load the draft for this thread, if we aren't already handling
-//        // existing data, such as a shared picture or forwarded message.
-//        boolean isForwardedMessage = false;
-//        mShouldLoadDraft = false;
-//        
-//        // Let the working message know what conversation it belongs to
-//        mWorkingMessage.setConversation(mConversation);
-//
-//        // Show the recipients editor if we don't have a valid thread. Hide it otherwise.
-//        if (mConversation.getThreadId() <= 0) {
-//            // Hide the recipients editor so the call to initRecipientsEditor won't get
-//            // short-circuited.
-//            hideRecipientEditor();
-//            initRecipientsEditor();
-//        } else {
-//            hideRecipientEditor();
-//        }
-//
-//        updateSendButtonState();
-//
-//        drawTopPanel(false);
-//        if (!mShouldLoadDraft) {
-//            // We're not loading a draft, so we can draw the bottom panel immediately.
-//            drawBottomPanel();
-//        }
-//
-//        onKeyboardStateChanged(mIsKeyboardOpen);
-//
-//        if (Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
-//            log("update title, mConversation=" + mConversation.toString());
-//        }
-//
-//        updateTitle(mConversation.getRecipients());
-//
-//        if (isForwardedMessage && isRecipientsEditorVisible()) {
-//            // The user is forwarding the message to someone. Put the focus on the
-//            // recipient editor rather than in the message editor.
-////            mRecipientsEditor.requestFocus();
-//        }
-//
-//        mMsgListAdapter.setIsGroupConversation(mConversation.getRecipients().size() > 1);
     }
     
     void toast(String msg) {
@@ -2694,29 +2526,32 @@ public class ComposeMessageFragment extends Fragment
             }
         }
 
-//        initFocus();
-
         // Register a BroadcastReceiver to listen on HTTP I/O process.
         getActivity().registerReceiver(mHttpProgressReceiver, mHttpProgressFilter);
+        
+        initInputMode();
 
-        // figure out whether we need to show the keyboard or not.
-        // if there is draft to be loaded for 'mConversation', we'll show the keyboard;
-        // otherwise we hide the keyboard. In any event, delay loading
-        // message history and draft (controlled by DEFER_LOADING_MESSAGES_AND_DRAFT).
-        int mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
+//        // figure out whether we need to show the keyboard or not.
+//        // if there is draft to be loaded for 'mConversation', we'll show the keyboard;
+//        // otherwise we hide the keyboard. In any event, delay loading
+//        // message history and draft (controlled by DEFER_LOADING_MESSAGES_AND_DRAFT).
+//        int mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
+//        
+//        if(mHasFocus) {
+//            if (DraftCache.getInstance().hasDraft(mConversation.getThreadId())) {
+//                toast("we have a DRAFT here!");
+//                mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE;
+//            } else if (mConversation.getThreadId() <= 0) {
+//                // For composing a new message, bring up the softkeyboard so the user can
+//                // immediately enter recipients. This call won't do anything on devices with
+//                // a hard keyboard.
+//                mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE;
+//            }
+//        } else {
+//            mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN;
+//        }
 
-        if (DraftCache.getInstance().hasDraft(mConversation.getThreadId())) {
-            mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE;
-        } else if (mConversation.getThreadId() <= 0) {
-            // For composing a new message, bring up the softkeyboard so the user can
-            // immediately enter recipients. This call won't do anything on devices with
-            // a hard keyboard.
-//            mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE;
-        } else {
-            mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN;
-        }
-
-        getActivity().getWindow().setSoftInputMode(mode);
+//        getActivity().getWindow().setSoftInputMode(mode);
 
         // reset mMessagesAndDraftLoaded
         mMessagesAndDraftLoaded = false;
@@ -2750,14 +2585,50 @@ public class ComposeMessageFragment extends Fragment
 //        ActionBar actionBar = getActivity().getActionBar();
 //        actionBar.setDisplayHomeAsUpEnabled(true);
     }
+    
+    private void initInputMode() {
+      // figure out whether we need to show the keyboard or not.
+      // if there is draft to be loaded for 'mConversation', we'll show the keyboard;
+      // otherwise we hide the keyboard. In any event, delay loading
+      // message history and draft (controlled by DEFER_LOADING_MESSAGES_AND_DRAFT).
+        int mode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
+        
+        if(mHasFocus) {
+            if (DraftCache.getInstance().hasDraft(mConversation.getThreadId())) {
+                toast("we have a DRAFT here!");
+                mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE;
+            } else if (mConversation.getThreadId() <= 0) {
+                // For composing a new message, bring up the softkeyboard so the user can
+                // immediately enter recipients. This call won't do anything on devices with
+                // a hard keyboard.
+                mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE;
+            }
+        } else {
+            mode |= WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN;
+        }
+
+        getActivity().getWindow().setSoftInputMode(mode);
+    }
 
     public void loadMessageContent() {
         // Don't let any markAsRead DB updates occur before we've loaded the messages for
         // the thread. Unblocking occurs when we're done querying for the conversation
         // items.
-        mConversation.blockMarkAsRead(true);
-        mConversation.markAsRead(true);         // dismiss any notifications for this convo
+        if(mHasFocus) {
+            toast("we have focus and are setting messages unread");
+            mConversation.blockMarkAsRead(true);
+            mConversation.markAsRead(true);         // dismiss any notifications for this convo
+            initFocus();
+        }
+        else {
+            toast("we DO NOT HAVE FOCUS");
+        }
+        startMsgListQuery();
         updateSendFailedNotification();
+    }
+    
+    private void markConversationAsRead() {
+        mConversation.markAsRead(true);
     }
 
     /**
@@ -2861,7 +2732,9 @@ public class ComposeMessageFragment extends Fragment
 
         mIsRunning = true;
         updateThreadIdIfRunning();
-        mConversation.markAsRead(true);
+        if(mHasFocus) {
+            mConversation.markAsRead(true);
+        }
     }
 
     @Override
@@ -2897,8 +2770,9 @@ public class ComposeMessageFragment extends Fragment
         if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
             Log.v(TAG, "onPause: mSavedScrollPosition=" + mSavedScrollPosition);
         }
-
-        mConversation.markAsRead(true);
+        if(mHasFocus) {
+            mConversation.markAsRead(true);
+        }
         mIsRunning = false;
     }
 
@@ -3002,52 +2876,49 @@ public class ComposeMessageFragment extends Fragment
         return mIsKeyboardOpen;
     }
 
-    // TODO
-//    @Override
-//    public boolean onKeyDown(int keyCode, KeyEvent event) {
-//        switch (keyCode) {
-//            case KeyEvent.KEYCODE_DEL:
-//                if ((mMsgListAdapter != null) && mMsgListView.isFocused()) {
-//                    Cursor cursor;
-//                    try {
-//                        cursor = (Cursor) mMsgListView.getSelectedItem();
-//                    } catch (ClassCastException e) {
-//                        Log.e(TAG, "Unexpected ClassCastException.", e);
-//                        return super.onKeyDown(keyCode, event);
-//                    }
-//
-//                    if (cursor != null) {
-//                        String type = cursor.getString(COLUMN_MSG_TYPE);
-//                        long msgId = cursor.getLong(COLUMN_ID);
-//                        MessageItem msgItem = mMsgListAdapter.getCachedMessageItem(type, msgId,
-//                                cursor);
-//                        if (msgItem != null) {
-//                            DeleteMessageListener l = new DeleteMessageListener(msgItem);
-//                            confirmDeleteDialog(l, msgItem.mLocked);
-//                        }
-//                        return true;
-//                    }
-//                }
-//                break;
-//            case KeyEvent.KEYCODE_DPAD_CENTER:
-//            case KeyEvent.KEYCODE_ENTER:
-//                if (isPreparedForSending()) {
-//                    confirmSendMessageIfNeeded();
-//                    return true;
-//                }
-//                break;
-//            case KeyEvent.KEYCODE_BACK:
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DEL:
+                if ((mMsgListAdapter != null) && mMsgListView.isFocused()) {
+                    Cursor cursor;
+                    try {
+                        cursor = (Cursor) mMsgListView.getSelectedItem();
+                    } catch (ClassCastException e) {
+                        Log.e(TAG, "Unexpected ClassCastException.", e);
+                        return false;
+                    }
+
+                    if (cursor != null) {
+                        String type = cursor.getString(COLUMN_MSG_TYPE);
+                        long msgId = cursor.getLong(COLUMN_ID);
+                        MessageItem msgItem = mMsgListAdapter.getCachedMessageItem(type, msgId,
+                                cursor);
+                        if (msgItem != null) {
+                            DeleteMessageListener l = new DeleteMessageListener(msgItem);
+                            confirmDeleteDialog(l, msgItem.mLocked);
+                        }
+                        return true;
+                    }
+                }
+                break;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+                toast("2 enter pressed");
+                if (isPreparedForSending()) {
+                    confirmSendMessageIfNeeded();
+                    return true;
+                }
+                break;
+            case KeyEvent.KEYCODE_BACK:
 //                exitComposeMessageActivity(new Runnable() {
-//                    @Override
 //                    public void run() {
-//                        finish();
 //                    }
 //                });
-//                return true;
-//        }
-//
-//        return super.onKeyDown(keyCode, event);
-//    }
+                return true;
+        }
+
+        return false;
+    }
 
     private void exitComposeMessageActivity(final Runnable exit) {
         // If the message is empty, just quit -- finishing the
@@ -4241,6 +4112,22 @@ public class ComposeMessageFragment extends Fragment
         mTextEditor.addTextChangedListener(mTextEditorWatcher);
         mTextEditor.setFilters(new InputFilter[] {
                 new LengthFilter(MmsConfig.getMaxTextLimit())});
+        mTextEditor.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if(mHasFocus) {
+                    if(hasFocus) {
+                        // If we have drafts, we want to show keyboard when we focus.
+                        // Otherwise we want the keyboard to remain hidden.
+                        if(DraftCache.getInstance().hasDraft(mConversation.getThreadId())) {
+                            final InputMethodManager inputManager = (InputMethodManager)
+                                    getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+                            inputManager.showSoftInput(v, 0);
+                        }
+                    }
+                }
+            }
+        });
         mTextCounter = (TextView) getView().findViewById(R.id.text_counter);
         mSendButtonMms = (TextView) getView().findViewById(R.id.send_button_mms);
         mSendButtonSms = (ImageButton) getView().findViewById(R.id.send_button_sms);
@@ -4291,10 +4178,9 @@ public class ComposeMessageFragment extends Fragment
         Uri conversationUri = mConversation.getUri();
 
         if (conversationUri == null) {
-//            if(mShowAfterQuery && mPaneController != null) {
-//                mShowAfterQuery = false;
-//                mPaneController.close();
-//            }
+            // This is basically where we realize that we are not loading from the database.
+            // If we are visible, we want to grab focus if necessary.
+            initFocus();
             log("##### startMsgListQuery: conversationUri is null, bail!");
             return;
         }
@@ -4541,7 +4427,7 @@ public class ComposeMessageFragment extends Fragment
 
         mLastRecipientCount = 0;
         mSendingMessage = false;
-        getActivity().invalidateOptionsMenu();
+//        getActivity().invalidateOptionsMenu();
    }
 
     private void hideKeyboard() {
@@ -4711,48 +4597,51 @@ public class ComposeMessageFragment extends Fragment
         mWorkingMessage.setSubject(intent.getStringExtra("subject"), false);
     }
     
+    public void setShouldHaveFocus(boolean shouldHaveFocus) {
+        toast(" SETTING HASFOCUS TO " + shouldHaveFocus);
+        mHasFocus = shouldHaveFocus;
+    }
+    
     public void onShow() {
-        mHasFocus = true;
-        initFocus();
         reloadTitle();
-        
-        if(mShowAfterQuery) {
-            startMsgListQuery();
-        }
-//        mConversation.blockMarkAsRead(true);
-//        mConversation.markAsRead(true);
-//        startMsgListQuery();
-//        loadMessageContent();
+        loadMessageContent();
     }
     
     public void onHide() {
-        mHasFocus = false;
         mTextEditor.clearFocus();
         if(this.isRecipientsEditorVisible())
             mRecipientsEditor.clearFocus();
     }
 
     private void initFocus() {
+        toast("^^^^^^^^^^^^^^^^^^^^INIT FOCUS^^^^^^^^^^^^^^^^^^^^^^^^^");
         if (!mIsKeyboardOpen) {
             return;
         }
-        
+//      
         mTextEditor.clearFocus();
-        if(mRecipientsEditor != null)
-        mRecipientsEditor.clearFocus();
-
-        // If the recipients editor is visible, there is nothing in it,
-        // and the text editor is not already focused, focus the
-        // recipients editor.
-        if (isRecipientsEditorVisible()
-                && TextUtils.isEmpty(mRecipientsEditor.getText())
-                && !mTextEditor.isFocused()) {
-            mRecipientsEditor.requestFocus();
-            return;
+        if(!mHasFocus) {
+            toast("^^^^^^^^^^^^^^^^^^^^NO FOCUS, CLEARING ALL^^^^^^^^^^^^^^^^^^^^^^^^^");
+            mTextEditor.clearFocus();
+            if(mRecipientsEditor != null) {
+                mRecipientsEditor.clearFocus();
+            }
         }
-
-        // If we decided not to focus the recipients editor, focus the text editor.
-        mTextEditor.requestFocus();
+        else {
+            toast("^^^^^^^^^^^^^^^^^^^^FOCUS, SETTING IT^^^^^^^^^^^^^^^^^^^^^^^^^");
+            // If the recipients editor is visible, there is nothing in it,
+            // and the text editor is not already focused, focus the
+            // recipients editor.
+            if (isRecipientsEditorVisible()
+                    && TextUtils.isEmpty(mRecipientsEditor.getText())
+                    && !mTextEditor.isFocused()) {
+                mRecipientsEditor.requestFocus();
+                return;
+            }
+            toast("^^^^^^^^^^^^^^^^^^^^SETTING TO TEXTEDITOR^^^^^^^^^^^^^^^^^^^^^^^^^");
+            // If we decided not to focus the recipients editor, focus the text editor.
+            mTextEditor.requestFocus();
+        }
     }
 
     private final MessageListAdapter.OnDataSetChangedListener
@@ -4764,25 +4653,26 @@ public class ComposeMessageFragment extends Fragment
         @Override
         public void onContentChanged(MessageListAdapter adapter) {
             // TODO do this some other way
-            MessagesActivity ma = (MessagesActivity) getActivity();
-            if(ma != null && ma.getDeleteFromList()) {
-                ma.setDeleteFromList(false);
-                long threadId = mConversation.getThreadId();
-                if(threadId == ma.getThreadId()) {
-                    // Our current conversation was deleted from the ConversationListFragment
-                    Log.d("Mms", "Our current conversation was deleted from the ConversationListFragment");
-                    //                    mWorkingMessage.discard();
-//                    mConversationIntent = createIntent(getActivity(), 0);
-//                    mConversation = Conversation.createNew(getActivity());
-//                    mWorkingMessage.discard();
-//                    startMsgListQuery();
-                    
-                    openThread(0, false);
-                }
-            }
-            else {
-                startMsgListQuery();
-            }
+//            MessagesActivity ma = (MessagesActivity) getActivity();
+//            if(ma != null && ma.getDeleteFromList()) {
+//                ma.setDeleteFromList(false);
+//                long threadId = mConversation.getThreadId();
+//                if(threadId == ma.getThreadId()) {
+//                    // Our current conversation was deleted from the ConversationListFragment
+//                    Log.d("Mms", "Our current conversation was deleted from the ConversationListFragment");
+//                    //                    mWorkingMessage.discard();
+////                    mConversationIntent = createIntent(getActivity(), 0);
+////                    mConversation = Conversation.createNew(getActivity());
+////                    mWorkingMessage.discard();
+////                    startMsgListQuery();
+//                    
+//                    openThread(0, false);
+//                }
+//            }
+//            else {
+//                startMsgListQuery();
+            loadMessageContent();
+//            }
             
 //            openThread(mConversationIntent, false);
         }
@@ -4974,7 +4864,7 @@ public class ComposeMessageFragment extends Fragment
                         // the message list to the end when we send a message, but have to wait
                         // until the DB has changed. We also want to scroll the list when a
                         // new message has arrived.
-                        if(mShowAfterQuery) {
+                        if(mOpenedFromList) {
                             mMsgListView.setSelection(mMsgListAdapter.getCount() - 1);
                         }
                         else {
@@ -5002,14 +4892,11 @@ public class ComposeMessageFragment extends Fragment
 
                     // FIXME: freshing layout changes the focused view to an unexpected
                     // one, set it back to TextEditor forcely.
-                    // TODO do something to this! this whole fragment needs work :/
-                    if(mShowAfterQuery) {
-                        mShowAfterQuery = false;
-//                        mPaneController.close();
-                        
-                        
-//                        mTextEditor.requestFocus();
+                    if(mHasFocus) {
+                        mTextEditor.requestFocus();
                     }
+                    
+                    
 //                    getActivity().invalidateOptionsMenu();    // some menu items depend on the adapter's count
                     return;
 

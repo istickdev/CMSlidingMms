@@ -35,7 +35,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-//        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED);
       
         setContentView(R.layout.messages_screen);
         
@@ -45,6 +45,8 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
             @Override
             public void onPanelClosed(View view) {
                 ComposeMessageFragment composeMessageFragment = getMessageFragment();
+                toast("0we are setting HAS FOCUS");
+                composeMessageFragment.setShouldHaveFocus(true);
                 composeMessageFragment.setHasOptionsMenu(true);
                 composeMessageFragment.onShow();
                 
@@ -61,6 +63,8 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
                 
                 getListFragment().setHasOptionsMenu(true);
                 ComposeMessageFragment composeMessageFragment = getMessageFragment();
+                toast("1we are setting HAS FOCUS");
+                composeMessageFragment.setShouldHaveFocus(false);
                 composeMessageFragment.setHasOptionsMenu(false);
                 composeMessageFragment.onHide();
                 
@@ -80,13 +84,14 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         String action = intent.getAction();
         ComposeMessageFragment cmf = (ComposeMessageFragment) getFragmentManager().findFragmentByTag(COMPOSE_MESSAGE_TAG);
         cmf.setPaneController(this);
-        cmf.openThread(intent, false);
         
         if(savedInstanceState != null) {
             
         } else {
             if(action == null || action.equals(Intent.ACTION_MAIN)) {
                 mSlidingPane.openPane();
+                toast("2we are setting HAS FOCUS");
+                cmf.setShouldHaveFocus(false);
             }
         }
         
@@ -100,14 +105,27 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     
     public void onResume() {
         super.onResume();
+        
+        // Handle intents that occur after the activity has already been created.
+        getListFragment().sync();
+        
+        
 //        mSlidingPane.closePaneNoAnimation();
         
         Intent intent = getIntent();
         String action = intent.getAction();
         ComposeMessageFragment cmf = (ComposeMessageFragment) getFragmentManager().findFragmentByTag(COMPOSE_MESSAGE_TAG);
-        cmf.setPaneController(this);
+        cmf.setPaneController(this); //TODO don't think I need this
+//        if(mSlidingPane.isOpen()) {
+//            cmf.setShouldHaveFocus(false);
+//        } else {
+//            cmf.setShouldHaveFocus(true);
+//        }
+        
         if(action.equals(Intent.ACTION_VIEW) || action.startsWith("android.intent.action.SEND")) {
-            cmf.openThread(intent, true);
+            toast("3we are setting HAS FOCUS");
+            cmf.setShouldHaveFocus(true);
+            cmf.openThread(intent, false);
         }
         
         boolean ex = (intent.getExtras() != null);
@@ -159,7 +177,11 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         }
 //        setIntent(intent);
         
-        if(mThreadId == threadId) {
+        // If we are opening a thread that is already open, we will just show the pane
+        // and load message content. If threadId is zero, we are creating a new message,
+        // so we want to just clear the current conversation no matter what (even if there
+        // is no conversation) to avoid text getting uncleared.
+        if(mThreadId == threadId && threadId != 0) {
             mSlidingPane.closePane();
             return;
         }
@@ -167,6 +189,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         mChangeThread = true;
         
         ComposeMessageFragment composeMessageFragment = getMessageFragment();
+        composeMessageFragment.setShouldHaveFocus(true);
         composeMessageFragment.openThread(intent, true);
 //        composeMessageFragment.openThread(threadId, true);
         composeMessageFragment.reloadTitle();
@@ -190,12 +213,10 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     }
     
     public void close() {
-//        mSlidingPane.closePaneNoAnimation();
         mSlidingPane.closePane();
     }
     
     public void open() {
-//        mSlidingPane.openPaneNoAnimation();
         mSlidingPane.openPane();
     }
     
@@ -214,40 +235,23 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     protected void onNewIntent(Intent newIntent) {
         super.onNewIntent(newIntent);
         this.setIntent(newIntent);
-        Intent intent = newIntent;
-        boolean ex = (intent.getExtras() != null);
-        toast("on new intent" + "\n" + intent.getAction() + "\n" + intent.getDataString() +
-                "\n" + "hasex: " + ex);
-        Log.d("Mms-------------", intent.toString());
-        Log.d("Mms-------------", intent.toURI());
-        if(ex) {
-            toast("extra text: " + intent.getExtras().getString(Intent.EXTRA_TEXT));
-        }
-        // Handle intents that occur after the activity has already been created.
-        getListFragment().sync();
-//        toast("[onNew] " + intent.getAction() + "\n"
-//                + intent.getDataString());        
-//        String action = getIntent().getAction();
-//        if(action != null && !action.equals(Intent.ACTION_MAIN)) {
-//            getMessageFragment().openThread(getIntent(), true);
-//        }
-//        getMessageFragment().openThread(newIntent, true);
+        
     }
     
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_BACK:
                 if(!mSlidingPane.isOpen()) {
-//                    mSlidingPane.openPane();
                     open();
                     return true;
                 }
                 else {
                     return super.onKeyDown(keyCode, event);
                 }
+                
+            default:
+                return getMessageFragment().onKeyDown(keyCode, event);
         }
-
-        return super.onKeyDown(keyCode, event);
     }
     
     void toast(String msg) {
