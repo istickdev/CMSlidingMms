@@ -25,10 +25,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     
     private SlidingPaneLayout mSlidingPane;
     
-    private boolean mChangeThread;
     private long mThreadId;
-    
-    private boolean mShouldLoad;
     
     private boolean mDeleteFromList;
     
@@ -44,29 +41,13 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         mSlidingPane.setPanelSlideListener(new PanelSlideListener() {
             @Override
             public void onPanelClosed(View view) {
-                ComposeMessageFragment composeMessageFragment = getMessageFragment();
-                toast("0we are setting HAS FOCUS");
-                composeMessageFragment.setShouldHaveFocus(true);
-                composeMessageFragment.setHasOptionsMenu(true);
-                composeMessageFragment.onShow();
-                
-                ConversationListFragment clf = getListFragment();
-                clf.setHasOptionsMenu(false);
+                onShowConversation();
             }
 
             @Override
             public void onPanelOpened(View view) {
-                initActionBar();
-                
-                getListFragment().setHasOptionsMenu(true);
-                ComposeMessageFragment composeMessageFragment = getMessageFragment();
-                toast("1we are setting HAS FOCUS");
-                composeMessageFragment.setShouldHaveFocus(false);
-                composeMessageFragment.setHasOptionsMenu(false);
-                composeMessageFragment.onHide();
-                
-                InputMethodManager imm = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
-                imm.hideSoftInputFromWindow(mSlidingPane.getWindowToken(), 0);
+                onShowConversationList();
+
                 // Some devices may need to use this method ??
 //                imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0);
             }
@@ -87,7 +68,6 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         } else {
             if(action == null || action.equals(Intent.ACTION_MAIN)) {
                 mSlidingPane.openPane();
-                toast("2we are setting HAS FOCUS");
                 cmf.setShouldHaveFocus(false);
             }
         }
@@ -126,7 +106,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
 //            cmf.setShouldHaveFocus(true);
 //        }
         
-        if(action.equals(Intent.ACTION_VIEW) || action.startsWith("android.intent.action.SEND")) {
+        if(action != null && (action.equals(Intent.ACTION_VIEW) || action.startsWith("android.intent.action.SEND"))) {
             toast("3we are setting HAS FOCUS");
             cmf.setShouldHaveFocus(true);
             cmf.openThread(intent, false);
@@ -156,13 +136,8 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         
-        if(requestCode == 5) {
-            mShouldLoad = false;
-        }
-        else {
         // TODO: this is ugly
-            getMessageFragment().onActivityResult(requestCode, resultCode, data);
-        }
+        getMessageFragment().onActivityResult(requestCode, resultCode, data);
     }
     
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -190,6 +165,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         // is no conversation) to avoid text getting uncleared.
         if(mThreadId == threadId && threadId != 0) {
             mSlidingPane.closePane();
+            composeMessageFragment.reloadTitle();
         }
         else {
             composeMessageFragment.openThread(intent, true);
@@ -202,6 +178,28 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
 //        mSlidingPane.closePaneNoAnimation();
         
 //        mPane.closePane();
+    }
+    
+    private void onShowConversationList() {
+        initActionBar();
+        getListFragment().setHasOptionsMenu(true);
+        ComposeMessageFragment composeMessageFragment = getMessageFragment();
+        composeMessageFragment.setShouldHaveFocus(false);
+        composeMessageFragment.setHasOptionsMenu(false);
+        composeMessageFragment.onHide();
+        
+        InputMethodManager imm = (InputMethodManager) getSystemService(Activity.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(mSlidingPane.getWindowToken(), 0);
+    }
+    
+    private void onShowConversation() {
+        ComposeMessageFragment composeMessageFragment = getMessageFragment();
+        composeMessageFragment.setShouldHaveFocus(true);
+        composeMessageFragment.setHasOptionsMenu(true);
+        composeMessageFragment.onShow();
+        
+        ConversationListFragment clf = getListFragment();
+        clf.setHasOptionsMenu(false);
     }
     
     private ComposeMessageFragment getMessageFragment() {
