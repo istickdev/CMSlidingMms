@@ -18,106 +18,107 @@
  */
 -->
 
-<com.android.mms.ui.MessageListItem
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<com.android.mms.ui.MessageListItem xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/msg_list_item_send"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal">
+    android:orientation="horizontal" >
 
-    <LinearLayout android:id="@+id/mms_layout_view_parent"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical" >
+    <RelativeLayout
+        android:id="@+id/mms_layout_view_parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
 
+        <view
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/avatar"
+            android:layout_width="@dimen/avatar_width_height"
+            android:layout_height="@dimen/avatar_width_height"
+            android:layout_alignParentRight="true"
+            class="com.android.mms.ui.QuickContactDivot"
+            position="left_upper" />
+        
         <RelativeLayout
+            android:id="@+id/message_block"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:layout_toLeftOf="@id/avatar"
+            android:layout_alignParentRight="true"
+            android:layout_marginRight="@dimen/avatar_width_height"
+            android:background="@drawable/hairline_right"
+            android:minHeight="@dimen/avatar_width_height" >
 
-            <view xmlns:android="http://schemas.android.com/apk/res/android"
-                class="com.android.mms.ui.QuickContactDivot"
-                android:id="@+id/avatar"
-                position="left_upper"
-                android:layout_alignParentRight="true"
-                android:layout_width="@dimen/avatar_width_height"
-                android:layout_height="@dimen/avatar_width_height" />
-
-            <LinearLayout
-                android:id="@+id/message_block"
-                android:minHeight="@dimen/avatar_width_height"
+            <TextView
+                android:id="@+id/text_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_toLeftOf="@id/avatar"
-                android:background="@drawable/hairline_right"
-                android:minWidth="100dp"
-                android:orientation="vertical" >
+                android:layout_alignParentRight="true"
+                android:autoLink="all"
+                android:linksClickable="false"
+                android:paddingLeft="@dimen/message_item_text_padding_left_right"
+                android:paddingRight="@dimen/message_item_text_padding_left_right"
+                android:paddingTop="@dimen/message_item_text_padding_top"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:textColor="@color/message_sent"
+                android:textSize="16sp" />
 
-                <TextView android:id="@+id/text_view"
-                    android:autoLink="all"
-                    android:paddingLeft="@dimen/message_item_text_padding_left_right"
-                    android:paddingRight="@dimen/message_item_text_padding_left_right"
-                    android:paddingTop="@dimen/message_item_text_padding_top"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:linksClickable="false"
-                    android:gravity="right"
-                    android:textAppearance="?android:attr/textAppearanceSmall"
-                    android:textColor="@color/message_sent"
-                    android:textSize="16sp" />
+            <ImageView
+                android:id="@+id/locked_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentRight="true"
+                android:paddingRight="3dip"
+                android:src="@drawable/ic_lock_message_sms"
+                android:visibility="gone" />
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dip"
-                    android:paddingLeft="@dimen/message_item_text_padding_left_right"
-                    android:paddingRight="@dimen/message_item_text_padding_left_right"
-                    android:gravity="right"
-                    android:orientation="horizontal" >
+            <ImageView
+                android:id="@+id/delivered_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentRight="true"
+                android:paddingRight="3dip"
+                android:src="@drawable/ic_sms_mms_delivered"
+                android:visibility="gone" />
 
-                    <ImageView
-                        android:id="@+id/locked_indicator"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:src="@drawable/ic_lock_message_sms"
-                        android:paddingRight="3dip"
-                        android:visibility="gone" />
+            <ImageView
+                android:id="@+id/details_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentRight="true"
+                android:paddingRight="3dip"
+                android:src="@drawable/ic_sms_mms_details"
+                android:visibility="gone" />
 
-                    <ImageView
-                        android:id="@+id/delivered_indicator"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingRight="3dip"
-                        android:src="@drawable/ic_sms_mms_delivered"
-                        android:visibility="gone" />
+            <TextView
+                android:id="@+id/date_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentRight="true"
+                android:paddingRight="3dp"
+                android:background="@drawable/listitem_background"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:textColor="@color/text_hairline" />
 
-                    <ImageView
-                        android:id="@+id/details_indicator"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingRight="3dip"
-                        android:src="@drawable/ic_sms_mms_details"
-                        android:visibility="gone" />
+            <ViewStub
+                android:id="@+id/mms_layout_view_stub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentRight="true"
+                android:layout="@layout/mms_layout_view" />
 
-                    <TextView android:id="@+id/date_view"
-                        android:background="@drawable/listitem_background"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textAppearance="?android:attr/textAppearanceSmall"
-                        android:textColor="@color/text_hairline" />
-                </LinearLayout>
-
-                <ViewStub android:id="@+id/mms_layout_view_stub"
-                    android:layout="@layout/mms_layout_view"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-            </LinearLayout>
+            <ViewStub
+                android:id="@+id/mms_downloading_view_stub"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentRight="true"
+                android:layout_gravity="center_vertical"
+                android:layout="@layout/mms_downloading_view" />
         </RelativeLayout>
-    </LinearLayout>
-
-    <ViewStub android:id="@+id/mms_downloading_view_stub"
-        android:layout="@layout/mms_downloading_view"
-        android:layout_gravity="center_vertical"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
-
+    </RelativeLayout>
 </com.android.mms.ui.MessageListItem>
