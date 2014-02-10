@@ -116,7 +116,15 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
             cmf.openThread(intent, false);
         }
         
-        boolean ex = (intent.getExtras() != null);
+        Bundle extras = intent.getExtras();
+        if(extras != null && extras.containsKey("thread_id")) {
+            mSlidingPane.closePane();
+            Conversation conversation = Conversation.get(this, intent.getData(), false);
+            mThreadId = conversation.getThreadId();
+            cmf.openThread(intent, false);
+        }
+        
+        boolean ex = (extras != null);
         log("[onResume] " + intent.getAction() + "\n" + intent.getDataString() +
                 "\n" + "hasex: " + ex);
         Log.d("Mms-------------", intent.toString());
@@ -241,8 +249,8 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     
     protected void onNewIntent(Intent newIntent) {
         super.onNewIntent(newIntent);
+        log(newIntent + " ***************&&&&&&");
         this.setIntent(newIntent);
-        
     }
     
     public void notifyDeleteThreads(Collection<Long> threadIds) {
