@@ -691,8 +691,12 @@ public class ConversationListFragment extends ListFragment implements DraftCache
 
         @Override
         public void onClick(DialogInterface dialog, final int whichButton) {
+            /* Tell MessagesActivity which threads we are deleting so we
+             * can clear open messages if necessary.
+             */
             MessagesActivity ma = (MessagesActivity) mContext;
-            ma.setDeleteFromList(true);
+//            ma.setDeleteFromList(true);
+            ma.notifyDeleteThreads(mThreadIds);
             
             MessageUtils.handleReadReport(mContext, mThreadIds,
                     PduHeaders.READ_STATUS__DELETED_WITHOUT_BEING_READ, new Runnable() {

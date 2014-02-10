@@ -245,6 +245,14 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         
     }
     
+    public void notifyDeleteThreads(Collection<Long> threadIds) {
+        if(threadIds.contains(mThreadId)) {
+//            openThread(0);
+//            getMessageFragment().initialize(null, 0);
+            getMessageFragment().clearThread();
+        }
+    }
+    
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
             case KeyEvent.KEYCODE_BACK:
