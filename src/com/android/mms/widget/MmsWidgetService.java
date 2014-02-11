@@ -36,9 +36,9 @@ import com.android.mms.LogTag;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
 import com.android.mms.data.Conversation;
-import com.android.mms.ui.ConversationList;
 import com.android.mms.ui.ConversationListItem;
 import com.android.mms.ui.MessageUtils;
+import com.android.mms.ui.MessagesActivity;
 import com.android.mms.util.SmileyParser;
 
 public class MmsWidgetService extends RemoteViewsService {
@@ -303,7 +303,7 @@ public class MmsWidgetService extends RemoteViewsService {
                     R.id.loading_text, mContext.getText(R.string.view_more_conversations));
             PendingIntent pendingIntent =
                     PendingIntent.getActivity(mContext, 0, new Intent(mContext,
-                            ConversationList.class),
+                            MessagesActivity.class),
                             PendingIntent.FLAG_UPDATE_CURRENT);
             view.setOnClickPendingIntent(R.id.widget_loading, pendingIntent);
             return view;

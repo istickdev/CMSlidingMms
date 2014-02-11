@@ -2383,7 +2383,6 @@ public class ComposeMessageFragment extends Fragment
         mMsgListAdapter.changeCursor(null);
         
         mSavedScrollPosition = -1;
-        mLastMessageId = 0;
         
         Conversation conversation = Conversation.get(getActivity(), mConversationIntent.getData(), false);
         updateTitle(conversation.getRecipients());

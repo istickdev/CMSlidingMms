@@ -29,8 +29,7 @@ import android.widget.RemoteViews;
 
 import com.android.mms.LogTag;
 import com.android.mms.R;
-import com.android.mms.ui.ComposeMessageFragment;
-import com.android.mms.ui.ConversationList;
+import com.android.mms.ui.MessagesActivity;
 
 public class MmsWidgetProvider extends AppWidgetProvider {
     public static final String ACTION_NOTIFY_DATASET_CHANGED =
@@ -93,26 +92,29 @@ public class MmsWidgetProvider extends AppWidgetProvider {
         remoteViews.setTextViewText(R.id.widget_label, context.getString(R.string.app_label));
 
         // Open Mms's app conversation list when click on header
-        final Intent convIntent = new Intent(context, ConversationList.class);
+        final Intent convIntent = new Intent(context, MessagesActivity.class);
         clickIntent = PendingIntent.getActivity(
                 context, 0, convIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         remoteViews.setOnClickPendingIntent(R.id.widget_header, clickIntent);
 
         // On click intent for Compose
-        final Intent composeIntent = new Intent(context, ComposeMessageFragment.class);
+        final Intent composeIntent = new Intent(context, MessagesActivity.class);
         composeIntent.setAction(Intent.ACTION_SENDTO);
         clickIntent = PendingIntent.getActivity(
                 context, 0, composeIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         remoteViews.setOnClickPendingIntent(R.id.widget_compose, clickIntent);
 
         // On click intent for Conversation
-        TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(context);
-        taskStackBuilder.addParentStack(ComposeMessageFragment.class);
-        Intent msgIntent = new Intent(Intent.ACTION_VIEW);
+//        TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(context);
+//        taskStackBuilder.addParentStack(MessagesActivity.class);
+        final Intent msgIntent = new Intent(context, MessagesActivity.class);
+        msgIntent.setAction(Intent.ACTION_VIEW);
+//        Intent msgIntent = new Intent(Intent.ACTION_VIEW);
         msgIntent.setType("vnd.android-dir/mms-sms");
-        taskStackBuilder.addNextIntent(msgIntent);
-        remoteViews.setPendingIntentTemplate(R.id.conversation_list,
-                taskStackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT));
+        clickIntent = PendingIntent.getActivity(
+                context, 0, msgIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+//        taskStackBuilder.addNextIntent(msgIntent);
+        remoteViews.setPendingIntentTemplate(R.id.conversation_list, clickIntent);
 
         AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews);
     }
