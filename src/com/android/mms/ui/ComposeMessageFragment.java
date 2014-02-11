@@ -4862,6 +4862,7 @@ public class ComposeMessageFragment extends Fragment
                                 }
                             }
                         }
+                        mConversationIntent.putExtra("select_id", -1);
                     } else if (mSavedScrollPosition != -1) {
                         // mSavedScrollPosition is set when this activity pauses. If equals maxint,
                         // it means the message list was scrolled to the end. Meanwhile, messages
