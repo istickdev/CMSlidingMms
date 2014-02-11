@@ -2120,6 +2120,15 @@ public class ComposeMessageFragment extends Fragment
         boolean anySubViewsVisible = (isSubjectEditorVisible() || isRecipientsEditorVisible());
         mTopPanel.setVisibility(anySubViewsVisible ? View.VISIBLE : View.GONE);
     }
+    
+    public void clearThread() {
+        mConversationIntent = new Intent();
+        openThread(mConversationIntent);
+//        initActivityState(null);
+//        reloadTitle();
+//        mWorkingMessage = WorkingMessage.createEmpty(this);
+//        initialize(null, 0);
+    }
 
     public void initialize(Bundle savedInstanceState, long originalThreadId) {
         // Create a new empty working message.
@@ -2369,9 +2378,12 @@ public class ComposeMessageFragment extends Fragment
     }
     
     public void openThread(Intent intent, boolean fromList) {
-        mOpenedFromList = fromList;
+        if(fromList == true) mOpenedFromList = fromList;
         mConversationIntent = intent;
         mMsgListAdapter.changeCursor(null);
+        
+        mSavedScrollPosition = -1;
+        mLastMessageId = 0;
         
         Conversation conversation = Conversation.get(getActivity(), mConversationIntent.getData(), false);
         updateTitle(conversation.getRecipients());
@@ -2756,6 +2768,9 @@ public class ComposeMessageFragment extends Fragment
             mSavedScrollPosition = Integer.MAX_VALUE;
         } else {
             mSavedScrollPosition = mMsgListView.getFirstVisiblePosition();
+            if(mMsgListView.getChildAt(0).getTop() < 0) {
+                mSavedScrollPosition++;
+            }
         }
         if (LogTag.VERBOSE || Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
             Log.v(TAG, "onPause: mSavedScrollPosition=" + mSavedScrollPosition);
@@ -4371,6 +4386,10 @@ public class ComposeMessageFragment extends Fragment
 //            finish();
         }
     }
+    
+    public void clearMessageThread() {
+        
+    }
 
     private void resetMessage() {
         if (Log.isLoggable(LogTag.APP, Log.VERBOSE)) {
@@ -4602,6 +4621,7 @@ public class ComposeMessageFragment extends Fragment
         if(mOpenedFromList) {
             openThread(mConversationIntent);
         } else {
+//        if(!mOpenedFromList) {
             loadMessageContent();
 //            mConversation.blockMarkAsRead(true);
 //            mConversation.markAsRead(true);         // dismiss any notifications for this convo
@@ -4614,6 +4634,8 @@ public class ComposeMessageFragment extends Fragment
         mTextEditor.clearFocus();
         if(this.isRecipientsEditorVisible())
             mRecipientsEditor.clearFocus();
+        
+        mSavedScrollPosition = -2;
     }
 
     private void initFocus() {
@@ -4816,7 +4838,17 @@ public class ComposeMessageFragment extends Fragment
 
                     // check consistency b/t mConversation & mWorkingMessage.mConversation
                     sanityCheckConversation();
-
+                    
+                    toast("mSavedScrollPosition: " + mSavedScrollPosition);
+                    toast("mMsgListAdapter count: " + mMsgListAdapter.getCount());
+                    
+                    /* We only want to restore the saved position if we are resuming the activity.
+                     * For instance, if we already have a thread open and are pulling the pane open
+                     * to view it, we do not want to reposition because the position will already be
+                     * where it was left.
+                     * If we open a thread from the list, we always want to scroll to the last message
+                     * in the thread.
+                     */
                     int newSelectionPos = -1;
                     long targetMsgId = mConversationIntent.getLongExtra("select_id", -1);
                     if (targetMsgId != -1) {
@@ -4830,6 +4862,7 @@ public class ComposeMessageFragment extends Fragment
                                 }
                             }
                         }
+                        mConversationIntent.putExtra("select_id", -1);
                     } else if (mSavedScrollPosition != -1) {
                         // mSavedScrollPosition is set when this activity pauses. If equals maxint,
                         // it means the message list was scrolled to the end. Meanwhile, messages
@@ -4851,37 +4884,55 @@ public class ComposeMessageFragment extends Fragment
                             mSavedScrollPosition = -1;
                         }
                     }
+                    
+                    toast("newSelectionPos " + newSelectionPos);
+                    toast("mOpenedFromList: " + mOpenedFromList);
 
                     mMsgListAdapter.changeCursor(cursor);
-
-                    if (newSelectionPos != -1) {
-                        mMsgListView.setSelection(newSelectionPos);     // jump the list to the pos
-                    } else {
+                    
+                    if (newSelectionPos > -1) {
+                        mMsgListView.setSelection(newSelectionPos);     // jump the list to the pos                        
+                    } else if (newSelectionPos == -1) {
                         int count = mMsgListAdapter.getCount();
                         long lastMsgId = 0;
                         if (cursor != null && count > 0) {
                             cursor.moveToLast();
                             lastMsgId = cursor.getLong(COLUMN_ID);
+                            toast("lastMsgId: " + lastMsgId);
                         }
+                        toast("count: " + count);
+                        if(mOpenedFromList) {
+                            mMsgListView.setSelection(count - 1);
+                        }
+                        
                         // mScrollOnSend is set when we send a message. We always want to scroll
                         // the message list to the end when we send a message, but have to wait
                         // until the DB has changed. We also want to scroll the list when a
                         // new message has arrived.
-                        if(mOpenedFromList) {
-                            mOpenedFromList = false;
-                            mMsgListView.setSelection(mMsgListAdapter.getCount() - 1);
-                        }
-                        else {
-                            smoothScrollToEnd(mScrollOnSend || lastMsgId != mLastMessageId, 0);
-                        }
+                        smoothScrollToEnd(mScrollOnSend || lastMsgId != mLastMessageId, 0);
+                        toast("mLastMessageId: " + mLastMessageId);
                         mLastMessageId = lastMsgId;
                         mScrollOnSend = false;
+                        /* delete this */
+//                        if(mOpenedFromList) {
+//                            mOpenedFromList = false;
+//                            //mMsgListView.setSelection(mMsgListAdapter.getCount() - 1);
+//                        }
+//                        else {
+//                            smoothScrollToEnd(mScrollOnSend || lastMsgId != mLastMessageId, 0);
+//                        }
+//                        mLastMessageId = lastMsgId;
+//                        mScrollOnSend = false;
+                        /* delete up */
                     }
                     // Adjust the conversation's message count to match reality. The
                     // conversation's message count is eventually used in
                     // WorkingMessage.clearConversation to determine whether to delete
                     // the conversation or not.
                     mConversation.setMessageCount(mMsgListAdapter.getCount());
+                    
+                    mSavedScrollPosition = -1;
+                    mOpenedFromList = false;
                     
 //                    mMsgListView.setSelection(mMsgListAdapter.getCount() - 1);
 

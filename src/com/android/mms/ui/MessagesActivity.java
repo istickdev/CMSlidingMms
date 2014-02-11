@@ -15,6 +15,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
 import com.android.mms.R;
+import com.android.mms.data.Conversation;
 
 import java.util.Collection;
 
@@ -107,18 +108,29 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
 //        }
         
         if(action != null && (action.equals(Intent.ACTION_VIEW) || action.startsWith("android.intent.action.SEND"))) {
-            toast("3we are setting HAS FOCUS");
-            cmf.setShouldHaveFocus(true);
+            log("3we are setting HAS FOCUS");
+//            cmf.setShouldHaveFocus(true);
+            onShowConversation();
+            Conversation conversation = Conversation.get(this, intent.getData(), false);
+            mThreadId = conversation.getThreadId();
             cmf.openThread(intent, false);
         }
         
-        boolean ex = (intent.getExtras() != null);
-        toast("[onResume] " + intent.getAction() + "\n" + intent.getDataString() +
+        Bundle extras = intent.getExtras();
+        if(extras != null && extras.containsKey("thread_id")) {
+            mSlidingPane.closePane();
+            Conversation conversation = Conversation.get(this, intent.getData(), false);
+            mThreadId = conversation.getThreadId();
+            cmf.openThread(intent, false);
+        }
+        
+        boolean ex = (extras != null);
+        log("[onResume] " + intent.getAction() + "\n" + intent.getDataString() +
                 "\n" + "hasex: " + ex);
         Log.d("Mms-------------", intent.toString());
         Log.d("Mms-------------", intent.toURI());
         if(ex) {
-            toast("extra text: " + intent.getExtras().getString(Intent.EXTRA_TEXT));
+            log("extra text: " + intent.getExtras().getString(Intent.EXTRA_TEXT));
         }
         
         
@@ -153,7 +165,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     public void openThread(long threadId) {
         Intent intent = ComposeMessageFragment.createIntent(this, threadId);
         if(intent == null) {
-            toast("created intent is null!");
+            log("created intent is null!");
         }
 //        setIntent(intent);
         
@@ -237,8 +249,16 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
     
     protected void onNewIntent(Intent newIntent) {
         super.onNewIntent(newIntent);
+        log(newIntent + " ***************&&&&&&");
         this.setIntent(newIntent);
-        
+    }
+    
+    public void notifyDeleteThreads(Collection<Long> threadIds) {
+        if(threadIds.contains(mThreadId)) {
+//            openThread(0);
+//            getMessageFragment().initialize(null, 0);
+            getMessageFragment().clearThread();
+        }
     }
     
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -257,7 +277,7 @@ public class MessagesActivity extends Activity implements ComposeMessageFragment
         }
     }
     
-    void toast(String msg) {
+    void log(String msg) {
         Log.d("Mms   ____", msg);
 //        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
